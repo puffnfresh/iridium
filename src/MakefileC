@@ -1,0 +1,14 @@
+VPATH = ../cbits
+
+CFLAGS := -Wall
+
+all: quartz.o ir.o
+
+quartz.o: quartz.m quartz.h
+
+ir.o: ir.c ir.h
+
+.PHONY: clean
+clean:
+	rm quartz.o
+	rm ir   .o

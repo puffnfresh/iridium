@@ -1,0 +1,7 @@
+package iridiumquartz
+
+main = Quartz
+sourcedir = src
+makefile = MakefileC
+
+objs = quartz.o, quartz.h, ir.o, ir.h
