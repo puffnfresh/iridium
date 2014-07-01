@@ -10,4 +10,7 @@ typedef enum _CGSSpaceSelector {
   kCGSSpaceAll = 7
 } CGSSpaceSelector;
 
-extern CFArrayRef CGSCopySpaces(const CGSConnectionID cid, CGSSpaceSelector type);
+extern CFArrayRef CGSCopySpaces(const CGSConnectionID, CGSSpaceSelector);
+
+// Private API: Stable identifier for a window.
+extern AXError _AXUIElementGetWindow(AXUIElementRef, CGWindowID*);

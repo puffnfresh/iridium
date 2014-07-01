@@ -1,6 +1,7 @@
 module IR
 
 import Effect.State
+import IR.Event
 
 %default total
 
@@ -38,14 +39,18 @@ record IRState : Type -> Type -> Type where
               IRState wid sid
 
 data IREffect : Effect where
-  GetEvent : { () } IREffect ()
+  GetEvent : { () } IREffect Event
+  HandleEvent : Event -> { () } IREffect ()
   GetFrames : { () } IREffect (n ** Vect (S n) Frame)
 
 IR : EFFECT
 IR = MkEff () IREffect
 
-getEvent : { [IR] } Eff e ()
+getEvent : { [IR] } Eff e Event
 getEvent = call GetEvent
+
+handleEvent : Event -> { [IR] } Eff e ()
+handleEvent e = call (HandleEvent e)
 
 getFrames : { [IR] } Eff e (n ** Vect (S n) Frame)
 getFrames = call GetFrames
@@ -53,5 +58,6 @@ getFrames = call GetFrames
 partial
 runIR : { [IR, STATE (IRState a b)] } Eff IO ()
 runIR = do
-  getEvent
+  e <- getEvent
+  handleEvent e
   runIR

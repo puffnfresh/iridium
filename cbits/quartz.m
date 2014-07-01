@@ -3,7 +3,9 @@
 #include "quartz.h"
 #include "quartz_stubs.h"
 
-// TODO: Add an NSApplicationDefined event for when a window or space is changed.
+void quartzApplicationDeactivateCallback(NSNotification *notification) {
+  [NSApp postEvent:[NSEvent otherEventWithType:NSApplicationDefined location:NSMakePoint(0,0) modifierFlags:0 timestamp:0 windowNumber:0 context:nil subtype:QuartzApplicationDeactivateEvent data1:0 data2:0] atStart:NO];
+}
 
 CGEventRef quartzEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *ref) {
   [NSApp postEvent:[NSEvent eventWithCGEvent:event] atStart:NO];
@@ -18,6 +20,11 @@ void quartzAttachEvents() {
   CGEventTapEnable(eventTap, YES);
   CFRelease(runLoopSource);
   CFRelease(eventTap);
+
+  NSNotificationCenter *center =  [[NSWorkspace sharedWorkspace] notificationCenter];
+  [center addObserverForName:NSWorkspaceDidDeactivateApplicationNotification object:nil queue:nil usingBlock:^(NSNotification *notiication) {
+    quartzApplicationDeactivateCallback(notiication);
+  }];
 }
 
 Boolean quartzInit() {
@@ -52,8 +59,11 @@ Boolean quartzInit() {
       AXUIElementCopyAttributeValue(windowRef, kAXSubroleAttribute, &subroleRef);
       NSString *subrole = CFBridgingRelease(subroleRef);
 
+      CGWindowID wid;
+      _AXUIElementGetWindow(windowRef, &wid);
+
       if ([subrole isEqualToString:(__bridge NSString *)kAXStandardWindowSubrole])
-        NSLog(@"%@ %@ %f %f %f %f", title, subrole, point.x, point.x, size.width, size.height);
+        NSLog(@"%d %@ %@ %f %f %f %f", wid, title, subrole, point.x, point.x, size.width, size.height);
     }
 
     CFRelease(axElementRef);
@@ -96,13 +106,27 @@ void *quartzMainFrame() {
     return irFrame;
 }
 
-void quartzBlock() {
+void *quartzEvent() {
   NSEvent *event = [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantFuture] inMode:NSDefaultRunLoopMode dequeue:YES];
-  switch([event type]) {
+  IREvent *irEvent = malloc(sizeof(irEvent));
+
+  switch ([event type]) {
   case NSKeyDown:
-    NSLog(@"KEY DOWN %d %ld", [event keyCode], [event modifierFlags]);
+    irEvent->type = IRKeyDownEventType;
+    irEvent->keyCode = [event keyCode];
+    break;
+  case NSApplicationDefined:
+    switch ([event subtype]) {
+    case QuartzApplicationDeactivateEvent:
+      // Focused application changed.
+      irEvent->type = IRRefreshEventType;
+      break;
+    }
     break;
   default:
-    NSLog(@"Unknown event %@", event);
+    irEvent->type = IRIgnoredEventType;
+    break;
   }
+
+  return irEvent;
 }

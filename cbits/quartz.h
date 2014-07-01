@@ -1,4 +1,8 @@
+typedef enum {
+  QuartzApplicationDeactivateEvent
+} QuartzEventType;
+
 unsigned char quartzInit();
 int quartzSpacesCount();
-void quartzBlock();
+void *quartzEvent();
 void *quartzMainFrame();

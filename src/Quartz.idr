@@ -2,6 +2,7 @@ module Main
 
 import Effect.State
 import IR
+import IR.Event
 
 %flag C "-framework Cocoa"
 %include C "cbits/quartz.h"
@@ -23,7 +24,13 @@ quartzSpacesCount = mkForeign (FFun "quartzSpacesCount" [] FInt)
 
 instance Handler IREffect IO where
   handle () GetEvent k = do
-    mkForeign (FFun "quartzBlock" [] FUnit)
+    p <- mkForeign (FFun "quartzEvent" [] FPtr)
+    e <- eventFromPtr p
+    k e ()
+  handle () (HandleEvent IgnoredEvent) k = do
+    k () ()
+  handle () (HandleEvent _) k = do
+    putStrLn "TODO"
     k () ()
   handle () GetFrames k = do
     p <- mkForeign (FFun "quartzMainFrame" [] FPtr)

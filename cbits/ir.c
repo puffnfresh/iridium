@@ -20,3 +20,15 @@ double irFrameW(IRFrame *frame) {
 double irFrameH(IRFrame *frame) {
   return frame->h;
 }
+
+void irEventFree(IREvent *event) {
+  free(event);
+}
+
+int irEventType(IREvent *event) {
+  return event->type;
+}
+
+int irEventKeyCode(IREvent *event) {
+  return event->keyCode;
+}
