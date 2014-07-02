@@ -3,6 +3,7 @@ module Main
 import Effect.State
 import IR
 import IR.Event
+import IR.Workspace
 
 %flag C "-framework Cocoa"
 %include C "cbits/quartz.h"
@@ -68,8 +69,7 @@ initialQuartzState : { [IR QuartzWindow, STATE QuartzState] } Eff IO ()
 initialQuartzState = do
   (_ ** frames) <- getFrames
   wids <- getWindows
-  -- TODO: Should use IR.Workspace.manage instead of manually inserting the windows.
-  put (MkIRState (MkStackSet (MkScreen (MkWorkspace (map (\wid => MkStack wid [] (fromMaybe [] (tail' wids))) (head' wids))) 0 (head frames)) [] []))
+  put (MkIRState (MkStackSet (MkScreen (foldr manage (MkWorkspace Nothing) wids) 0 (head frames)) [] []))
 
 partial
 main : IO ()
