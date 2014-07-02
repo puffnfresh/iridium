@@ -27,47 +27,10 @@ void quartzAttachEvents() {
   }];
 }
 
-Boolean quartzInit() {
+int quartzInit() {
   [NSApplication sharedApplication];
   [NSApp finishLaunching];
   Boolean success = AXIsProcessTrusted();
-
-  for (NSRunningApplication *runningApp in [[NSWorkspace sharedWorkspace] runningApplications]) {
-    AXUIElementRef axElementRef = AXUIElementCreateApplication(runningApp.processIdentifier);
-    CFArrayRef windowsArrayRef;
-    AXUIElementCopyAttributeValues(axElementRef, kAXWindowsAttribute, 0, 100, &windowsArrayRef);
-
-    NSArray *windowRefs = CFBridgingRelease(windowsArrayRef);
-    for (NSUInteger index = 0; index < windowRefs.count; ++index) {
-      AXUIElementRef windowRef = (__bridge AXUIElementRef)windowRefs[index];
-
-      CFTypeRef pointRef;
-      AXUIElementCopyAttributeValue(windowRef, kAXPositionAttribute, &pointRef);
-      CGPoint point;
-      AXValueGetValue(pointRef, kAXValueCGPointType, &point);
-
-      CFTypeRef sizeRef;
-      AXUIElementCopyAttributeValue(windowRef, kAXSizeAttribute, &sizeRef);
-      CGSize size;
-      AXValueGetValue(sizeRef, kAXValueCGSizeType, &size);
-
-      CFTypeRef titleRef;
-      AXUIElementCopyAttributeValue(windowRef, kAXTitleAttribute, &titleRef);
-      NSString *title = CFBridgingRelease(titleRef);
-
-      CFTypeRef subroleRef;
-      AXUIElementCopyAttributeValue(windowRef, kAXSubroleAttribute, &subroleRef);
-      NSString *subrole = CFBridgingRelease(subroleRef);
-
-      CGWindowID wid;
-      _AXUIElementGetWindow(windowRef, &wid);
-
-      if ([subrole isEqualToString:(__bridge NSString *)kAXStandardWindowSubrole])
-        NSLog(@"%d %@ %@ %f %f %f %f", wid, title, subrole, point.x, point.x, size.width, size.height);
-    }
-
-    CFRelease(axElementRef);
-  }
 
   // [NSScreen screensHaveSeparateSpaces];
 
@@ -85,11 +48,88 @@ int quartzSpacesCount() {
   return count;
 }
 
-uint64_t quartzCurrentSpaceId() {
+int quartzCurrentSpaceId() {
   CFArrayRef currentSpace = CGSCopySpaces(CGSDefaultConnection, kCGSSpaceCurrent);
   uint64_t currentSpaceId = [(id)CFArrayGetValueAtIndex(currentSpace, 0) intValue];
   CFRelease(currentSpace);
   return currentSpaceId;
+}
+
+void *quartzFindWindow(int wid) {
+  for (NSRunningApplication *runningApp in [[NSWorkspace sharedWorkspace] runningApplications]) {
+    AXUIElementRef axElementRef = AXUIElementCreateApplication(runningApp.processIdentifier);
+    CFArrayRef windowsArrayRef;
+    AXUIElementCopyAttributeValues(axElementRef, kAXWindowsAttribute, 0, 100, &windowsArrayRef);
+
+    NSArray *windowRefs = CFBridgingRelease(windowsArrayRef);
+    for (NSUInteger index = 0; index < windowRefs.count; ++index) {
+      AXUIElementRef windowRef = (__bridge AXUIElementRef)windowRefs[index];
+
+      CGWindowID windowRefId;
+      _AXUIElementGetWindow(windowRef, &windowRefId);
+
+      // TODO: Should we ignore Dash windows?
+
+      if (wid == windowRefId) {
+        CFRelease(axElementRef);
+        return (void *)windowRef;
+      }
+    }
+
+    CFRelease(axElementRef);
+  }
+
+  return NULL;
+}
+
+#define QUARTZ_WINDOWS_LENGTH 100
+
+void *quartzWindows() {
+  QuartzWindows *windows = malloc(sizeof(QuartzWindows));
+  windows->length = 0;
+  windows->wids = malloc(sizeof(int) * QUARTZ_WINDOWS_LENGTH);
+
+  for (NSRunningApplication *runningApp in [[NSWorkspace sharedWorkspace] runningApplications]) {
+    AXUIElementRef axElementRef = AXUIElementCreateApplication(runningApp.processIdentifier);
+    CFArrayRef windowsArrayRef;
+    AXUIElementCopyAttributeValues(axElementRef, kAXWindowsAttribute, 0, QUARTZ_WINDOWS_LENGTH, &windowsArrayRef);
+
+    NSArray *windowRefs = CFBridgingRelease(windowsArrayRef);
+    for (NSUInteger index = 0; index < windowRefs.count; ++index) {
+      AXUIElementRef windowRef = (__bridge AXUIElementRef)windowRefs[index];
+
+      CFTypeRef subroleRef;
+      AXUIElementCopyAttributeValue(windowRef, kAXSubroleAttribute, &subroleRef);
+      NSString *subrole = CFBridgingRelease(subroleRef);
+
+      CGWindowID wid;
+      _AXUIElementGetWindow(windowRef, &wid);
+
+      if ([subrole isEqualToString:(__bridge NSString *)kAXStandardWindowSubrole]) {
+        if (windows->length < QUARTZ_WINDOWS_LENGTH) {
+          windows->wids[windows->length] = wid;
+          windows->length++;
+        }
+      }
+    }
+
+    CFRelease(axElementRef);
+  }
+
+  return windows;
+}
+
+void quartzWindowsFree(QuartzWindows *windows) {
+  free(windows->wids);
+  free(windows);
+}
+
+int quartzWindowId(QuartzWindows *windows, int index) {
+  return windows->wids[index];
+}
+
+int quartzWindowsLength(QuartzWindows *windows) {
+  return windows->length;
 }
 
 void *quartzMainFrame() {

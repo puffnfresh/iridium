@@ -38,25 +38,29 @@ record IRState : Type -> Type -> Type where
   MkIRState : (irStateStackSet : StackSet wid sid) ->
               IRState wid sid
 
-data IREffect : Effect where
-  GetEvent : { () } IREffect Event
-  HandleEvent : Event -> { () } IREffect ()
-  GetFrames : { () } IREffect (n ** Vect (S n) Frame)
+data IREffect : Type -> Effect where
+  GetEvent : { () } (IREffect wid) Event
+  HandleEvent : Event -> { () } (IREffect wid) ()
+  GetFrames : { () } (IREffect wid) (n ** Vect (S n) Frame)
+  GetWindows : { () } (IREffect wid) (List wid)
 
-IR : EFFECT
-IR = MkEff () IREffect
+IR : Type -> EFFECT
+IR wid = MkEff () (IREffect wid)
 
-getEvent : { [IR] } Eff e Event
+getEvent : { [IR wid] } Eff e Event
 getEvent = call GetEvent
 
-handleEvent : Event -> { [IR] } Eff e ()
+handleEvent : Event -> { [IR wid] } Eff e ()
 handleEvent e = call (HandleEvent e)
 
-getFrames : { [IR] } Eff e (n ** Vect (S n) Frame)
+getFrames : { [IR wid] } Eff e (n ** Vect (S n) Frame)
 getFrames = call GetFrames
 
+getWindows : { [IR wid] } Eff e (List wid)
+getWindows = call GetWindows
+
 partial
-runIR : { [IR, STATE (IRState a b)] } Eff IO ()
+runIR : { [IR wid, STATE (IRState a b)] } Eff IO ()
 runIR = do
   e <- getEvent
   handleEvent e

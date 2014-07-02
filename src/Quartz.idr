@@ -22,7 +22,13 @@ quartzInit = map (/= 0) (mkForeign (FFun "quartzInit" [] FInt))
 quartzSpacesCount : IO Int
 quartzSpacesCount = mkForeign (FFun "quartzSpacesCount" [] FInt)
 
-instance Handler IREffect IO where
+QuartzWindow : Type
+QuartzWindow = Int
+
+QuartzState : Type
+QuartzState = IRState QuartzWindow Int
+
+instance Handler (IREffect QuartzWindow) IO where
   handle () GetEvent k = do
     p <- mkForeign (FFun "quartzEvent" [] FPtr)
     e <- eventFromPtr p
@@ -40,6 +46,12 @@ instance Handler IREffect IO where
     k () ()
   handle () (HandleEvent IgnoredEvent) k = do
     k () ()
+  handle () GetWindows k = do
+    p <- mkForeign (FFun "quartzWindows" [] FPtr)
+    l <- mkForeign (FFun "quartzWindowsLength" [FPtr] FInt) p
+    wids <- traverse (\a => mkForeign (FFun "quartzWindowId" [FPtr, FInt] FInt) p a) (with List [0..l-1])
+    mkForeign (FFun "quartzWindowsFree" [FPtr] FUnit) p
+    k wids ()
   handle () GetFrames k = do
     p <- mkForeign (FFun "quartzMainFrame" [] FPtr)
     x <- mkForeign (FFun "irFrameX" [FPtr] FFloat) p
@@ -49,16 +61,15 @@ instance Handler IREffect IO where
     mkForeign (FFun "irFrameFree" [FPtr] FUnit) p
     k (0 ** [MkFrame x y w h]) ()
 
-QuartzState : Type
-QuartzState = IRState Int Int
-
 instance Default QuartzState where
   default = MkIRState (MkStackSet (MkScreen (MkWorkspace Nothing) 0 (MkFrame 0 0 0 0)) [] [])
 
-initialQuartzState : { [IR, STATE QuartzState] } Eff IO ()
+initialQuartzState : { [IR QuartzWindow, STATE QuartzState] } Eff IO ()
 initialQuartzState = do
   (_ ** frames) <- getFrames
-  put (MkIRState (MkStackSet (MkScreen (MkWorkspace Nothing) 0 (head frames)) [] []))
+  wids <- getWindows
+  -- TODO: Should use IR.Workspace.manage instead of manually inserting the windows.
+  put (MkIRState (MkStackSet (MkScreen (MkWorkspace (map (\wid => MkStack wid [] (fromMaybe [] (tail' wids))) (head' wids))) 0 (head frames)) [] []))
 
 partial
 main : IO ()
