@@ -32,3 +32,19 @@ int irEventType(IREvent *event) {
 int irEventKeyCode(IREvent *event) {
   return event->keyCode;
 }
+
+int irEventKeyAlternate(IREvent *event) {
+  return event->modifiers & IRKeyModifierAlternate;
+}
+
+int irEventKeyCommand(IREvent *event) {
+  return event->modifiers & IRKeyModifierCommand;
+}
+
+int irEventKeyControl(IREvent *event) {
+  return event->modifiers & IRKeyModifierControl;
+}
+
+int irEventKeyShift(IREvent *event) {
+  return event->modifiers & IRKeyModifierShift;
+}

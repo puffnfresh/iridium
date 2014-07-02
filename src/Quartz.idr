@@ -17,7 +17,7 @@ putErrLn : String -> IO ()
 putErrLn s = fwrite stderr (s ++ "\n")
 
 quartzInit : IO Bool
-quartzInit = map (== 1) (mkForeign (FFun "quartzInit" [] FInt))
+quartzInit = map (/= 0) (mkForeign (FFun "quartzInit" [] FInt))
 
 quartzSpacesCount : IO Int
 quartzSpacesCount = mkForeign (FFun "quartzSpacesCount" [] FInt)
@@ -27,10 +27,18 @@ instance Handler IREffect IO where
     p <- mkForeign (FFun "quartzEvent" [] FPtr)
     e <- eventFromPtr p
     k e ()
-  handle () (HandleEvent IgnoredEvent) k = do
+  handle () (HandleEvent (KeyEvent key)) k = do
+    putStr "CODE: "
+    print (keyCode key)
+    putStr "ALT: "
+    print (keyHasAlt key)
+    putStr "CMD: "
+    print (keyHasCmd key)
     k () ()
-  handle () (HandleEvent _) k = do
-    putStrLn "TODO"
+  handle () (HandleEvent RefreshEvent) k = do
+    putStrLn "TODO: REFRESH"
+    k () ()
+  handle () (HandleEvent IgnoredEvent) k = do
     k () ()
   handle () GetFrames k = do
     p <- mkForeign (FFun "quartzMainFrame" [] FPtr)

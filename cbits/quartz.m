@@ -114,6 +114,19 @@ void *quartzEvent() {
   case NSKeyDown:
     irEvent->type = IRKeyDownEventType;
     irEvent->keyCode = [event keyCode];
+    irEvent->modifiers = 0;
+    if ([event modifierFlags] & NSAlternateKeyMask) {
+      irEvent->modifiers |= IRKeyModifierAlternate;
+    }
+    if ([event modifierFlags] & NSCommandKeyMask) {
+      irEvent->modifiers |= IRKeyModifierCommand;
+    }
+    if ([event modifierFlags] & NSControlKeyMask) {
+      irEvent->modifiers |= IRKeyModifierControl;
+    }
+    if ([event modifierFlags] & NSShiftKeyMask) {
+      irEvent->modifiers |= IRKeyModifierShift;
+    }
     break;
   case NSApplicationDefined:
     switch ([event subtype]) {
