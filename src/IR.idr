@@ -12,6 +12,13 @@ record Frame : Type where
             (frameH : Float) ->
             Frame
 
+record Rectangle : Type where
+  MkRectangle : (rectX : Float) ->
+                (rectY : Float) ->
+                (rectW : Float) ->
+                (rectH : Float) ->
+                Rectangle
+
 record Stack : Type -> Type where
   MkStack : (stackFocus : wid) ->
             (stackUp : List wid) ->
@@ -43,6 +50,7 @@ data IREffect : Type -> Effect where
   HandleEvent : Event -> { () } (IREffect wid) ()
   GetFrames : { () } (IREffect wid) (n ** Vect (S n) Frame)
   GetWindows : { () } (IREffect wid) (List wid)
+  TileWindow : wid -> Rectangle -> { () } (IREffect wid) ()
 
 IR : Type -> EFFECT
 IR wid = MkEff () (IREffect wid)
@@ -58,6 +66,9 @@ getFrames = call GetFrames
 
 getWindows : { [IR wid] } Eff e (List wid)
 getWindows = call GetWindows
+
+tileWindow : wid -> Rectangle -> { [IR wid] } Eff e ()
+tileWindow wid rect = call (TileWindow wid rect)
 
 partial
 runIR : { [IR wid, STATE (IRState a b)] } Eff IO ()

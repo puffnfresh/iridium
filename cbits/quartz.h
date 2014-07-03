@@ -13,7 +13,8 @@ void *quartzEvent();
 void *quartzMainFrame();
 
 void quartzWindowsFree(QuartzWindows *windows);
+void *quartzWindows();
 int quartzWindowId(QuartzWindows *windows, int index);
 int quartzWindowsLength(QuartzWindows *windows);
-void *quartzFindWindow(int wid);
-void *quartzWindows();
+
+void quartzWindowSetRect(int wid, double x, double y, double w, double h);

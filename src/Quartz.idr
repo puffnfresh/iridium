@@ -47,6 +47,9 @@ instance Handler (IREffect QuartzWindow) IO where
     k () ()
   handle () (HandleEvent IgnoredEvent) k = do
     k () ()
+  handle () (TileWindow wid r) k = do
+    mkForeign (FFun "quartzWindowSetRect" [FInt, FFloat, FFloat, FFloat, FFloat] FUnit) wid (rectX r) (rectY r) (rectW r) (rectH r)
+    k () ()
   handle () GetWindows k = do
     p <- mkForeign (FFun "quartzWindows" [] FPtr)
     l <- mkForeign (FFun "quartzWindowsLength" [FPtr] FInt) p

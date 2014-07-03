@@ -82,6 +82,26 @@ void *quartzFindWindow(int wid) {
   return NULL;
 }
 
+void quartzWindowSetRect(int wid, double x, double y, double w, double h) {
+  AXUIElementRef window = quartzFindWindow(wid);
+
+  CGPoint point = CGPointMake(x, y);
+  AXValueRef pointRef = AXValueCreate(kAXValueCGPointType, &point);
+  AXUIElementSetAttributeValue(window, kAXPositionAttribute, pointRef);
+  CFRelease(pointRef);
+
+  CGSize size = CGSizeMake(w, h);
+  AXValueRef sizeRef = AXValueCreate(kAXValueCGSizeType, &size);
+  AXUIElementSetAttributeValue(window, kAXSizeAttribute, sizeRef);
+  CFRelease(sizeRef);
+
+  CFRelease(window);
+}
+
+void quartzWindowFree(void *window) {
+  CFRelease(window);
+}
+
 #define QUARTZ_WINDOWS_LENGTH 100
 
 void *quartzWindows() {
