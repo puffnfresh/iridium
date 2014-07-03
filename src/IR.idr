@@ -5,13 +5,6 @@ import IR.Event
 
 %default total
 
-record Frame : Type where
-  MkFrame : (frameX : Float) ->
-            (frameY : Float) ->
-            (frameW : Float) ->
-            (frameH : Float) ->
-            Frame
-
 record Rectangle : Type where
   MkRectangle : (rectX : Float) ->
                 (rectY : Float) ->
@@ -32,7 +25,7 @@ record Workspace : Type -> Type where
 record Screen : Type -> Type -> Type where
   MkScreen : (screenWorkspace : Workspace wid) ->
              (screenId : sid) ->
-             (screenDetail : Frame) ->
+             (screenDetail : Rectangle) ->
              Screen wid sid
 
 record StackSet : Type -> Type -> Type where
@@ -48,7 +41,7 @@ record IRState : Type -> Type -> Type where
 data IREffect : Type -> Effect where
   GetEvent : { () } (IREffect wid) Event
   HandleEvent : Event -> { () } (IREffect wid) ()
-  GetFrames : { () } (IREffect wid) (n ** Vect (S n) Frame)
+  GetFrames : { () } (IREffect wid) (n ** Vect (S n) Rectangle)
   GetWindows : { () } (IREffect wid) (List wid)
   TileWindow : wid -> Rectangle -> { () } (IREffect wid) ()
 
@@ -61,7 +54,7 @@ getEvent = call GetEvent
 handleEvent : Event -> { [IR wid] } Eff e ()
 handleEvent e = call (HandleEvent e)
 
-getFrames : { [IR wid] } Eff e (n ** Vect (S n) Frame)
+getFrames : { [IR wid] } Eff e (n ** Vect (S n) Rectangle)
 getFrames = call GetFrames
 
 getWindows : { [IR wid] } Eff e (List wid)

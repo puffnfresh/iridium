@@ -4,6 +4,7 @@ import Effect.State
 import IR
 import IR.Event
 import IR.Workspace
+import IR.Layout
 
 %flag C "-framework Cocoa"
 %include C "cbits/quartz.h"
@@ -35,15 +36,8 @@ instance Handler (IREffect QuartzWindow) IO where
     e <- eventFromPtr p
     k e ()
   handle () (HandleEvent (KeyEvent key)) k = do
-    putStr "CODE: "
-    print (keyCode key)
-    putStr "ALT: "
-    print (keyHasAlt key)
-    putStr "CMD: "
-    print (keyHasCmd key)
     k () ()
   handle () (HandleEvent RefreshEvent) k = do
-    putStrLn "TODO: REFRESH"
     k () ()
   handle () (HandleEvent IgnoredEvent) k = do
     k () ()
@@ -53,7 +47,7 @@ instance Handler (IREffect QuartzWindow) IO where
   handle () GetWindows k = do
     p <- mkForeign (FFun "quartzWindows" [] FPtr)
     l <- mkForeign (FFun "quartzWindowsLength" [FPtr] FInt) p
-    wids <- traverse (\a => mkForeign (FFun "quartzWindowId" [FPtr, FInt] FInt) p a) (with List [0..l-1])
+    wids <- traverse (\a => mkForeign (FFun "quartzWindowId" [FPtr, FInt] FInt) p a) [0..l-1]
     mkForeign (FFun "quartzWindowsFree" [FPtr] FUnit) p
     k wids ()
   handle () GetFrames k = do
@@ -63,20 +57,31 @@ instance Handler (IREffect QuartzWindow) IO where
     w <- mkForeign (FFun "irFrameW" [FPtr] FFloat) p
     h <- mkForeign (FFun "irFrameH" [FPtr] FFloat) p
     mkForeign (FFun "irFrameFree" [FPtr] FUnit) p
-    k (0 ** [MkFrame x y w h]) ()
+    k (0 ** [MkRectangle x y w h]) ()
 
 instance Default QuartzState where
-  default = MkIRState (MkStackSet (MkScreen (MkWorkspace Nothing) 0 (MkFrame 0 0 0 0)) [] [])
+  default = MkIRState (MkStackSet (MkScreen (MkWorkspace Nothing) 0 (MkRectangle 0 0 0 0)) [] [])
+
+initialColumns : Rectangle -> Workspace QuartzWindow -> { [IR QuartzWindow] } Eff IO ()
+initialColumns frame (MkWorkspace Nothing) = return ()
+initialColumns frame (MkWorkspace (Just stack)) = f (toList (columnLayout frame stack))
+  where f ((w, r) :: xs) = do
+          tileWindow w r
+          f xs
+        f [] = return ()
 
 initialQuartzState : { [IR QuartzWindow, STATE QuartzState] } Eff IO ()
 initialQuartzState = do
-  (_ ** frames) <- getFrames
+  (_ ** frame :: _) <- getFrames
   wids <- getWindows
-  put (MkIRState (MkStackSet (MkScreen (foldr manage (MkWorkspace Nothing) wids) 0 (head frames)) [] []))
+  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace Nothing) wids
+  put (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
+  initialColumns frame workspace
 
 partial
 main : IO ()
 main = do
+  putStrLn "iridium started"
   a <- quartzInit
   if not a
   then do
