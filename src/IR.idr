@@ -23,6 +23,9 @@ record Workspace : Type -> Type where
   MkWorkspace : (workspaceStack : Maybe (Stack wid)) ->
                 Workspace wid
 
+workspaceStack' : Lens (Workspace wid) (Maybe (Stack wid))
+workspaceStack' = lens (\(MkWorkspace x) => x) (\x, (MkWorkspace _) => MkWorkspace x)
+
 record Screen : Type -> Type -> Type where
   MkScreen : (screenWorkspace : Workspace wid) ->
              (screenId : sid) ->

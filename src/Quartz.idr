@@ -58,7 +58,7 @@ quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
   wids <- quartzGetWindows
   let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace Nothing) wids
-  quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) (case workspace of MkWorkspace s => s)
+  quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) (workspaceStack' ^$ workspace)
   return (screenWorkspace' . stackSetCurrent' . irStateStackSet' ^= workspace $ s)
 
 instance Handler (IREffect QuartzWindow QuartzSpace) IO where
