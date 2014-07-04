@@ -52,7 +52,7 @@ quartzUpdate : Rectangle -> Maybe (Stack QuartzWindow) -> IO ()
 quartzUpdate frame Nothing =
   return ()
 quartzUpdate frame (Just stack) =
-  traverse_ (\(w, r) => quartzTileWindow w r) (toList (columnLayout frame stack))
+  traverse_ (uncurry quartzTileWindow) (toList (columnLayout frame stack))
 
 quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
