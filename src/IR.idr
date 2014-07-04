@@ -38,34 +38,36 @@ record IRState : Type -> Type -> Type where
   MkIRState : (irStateStackSet : StackSet wid sid) ->
               IRState wid sid
 
-data IREffect : Type -> Effect where
-  GetEvent : { () } (IREffect wid) Event
-  HandleEvent : Event -> { () } (IREffect wid) ()
-  GetFrames : { () } (IREffect wid) (n ** Vect (S n) Rectangle)
-  GetWindows : { () } (IREffect wid) (List wid)
-  TileWindow : wid -> Rectangle -> { () } (IREffect wid) ()
+data IREffect : Type -> Type -> Effect where
+  GetEvent : { () } (IREffect wid sid) Event
+  HandleEvent : IRState wid sid -> Event -> { () } (IREffect wid sid) (IRState wid sid)
+  GetFrames : { () } (IREffect wid sid) (n ** Vect (S n) Rectangle)
+  GetWindows : { () } (IREffect wid sid) (List wid)
+  TileWindow : wid -> Rectangle -> { () } (IREffect wid sid) ()
 
-IR : Type -> EFFECT
-IR wid = MkEff () (IREffect wid)
+IR : Type -> Type -> EFFECT
+IR wid sid = MkEff () (IREffect wid sid)
 
-getEvent : { [IR wid] } Eff e Event
+getEvent : { [IR wid sid] } Eff e Event
 getEvent = call GetEvent
 
-handleEvent : Event -> { [IR wid] } Eff e ()
-handleEvent e = call (HandleEvent e)
+handleEvent : IRState wid sid -> Event -> { [IR wid sid] } Eff e (IRState wid sid)
+handleEvent s e = call (HandleEvent s e)
 
-getFrames : { [IR wid] } Eff e (n ** Vect (S n) Rectangle)
+getFrames : { [IR wid sid] } Eff e (n ** Vect (S n) Rectangle)
 getFrames = call GetFrames
 
-getWindows : { [IR wid] } Eff e (List wid)
+getWindows : { [IR wid sid] } Eff e (List wid)
 getWindows = call GetWindows
 
-tileWindow : wid -> Rectangle -> { [IR wid] } Eff e ()
+tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff e ()
 tileWindow wid rect = call (TileWindow wid rect)
 
 partial
-runIR : { [IR wid, STATE (IRState a b)] } Eff IO ()
+runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff IO ()
 runIR = do
   e <- getEvent
-  handleEvent e
+  s <- get
+  s' <- handleEvent s e
+  put s'
   runIR
