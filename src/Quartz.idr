@@ -2,8 +2,9 @@ module Main
 
 import IR
 import IR.Event
-import IR.Workspace
 import IR.Layout
+import IR.Lens
+import IR.Workspace
 
 %flag C "-framework Cocoa"
 %include C "cbits/quartz.h"
@@ -53,11 +54,12 @@ quartzUpdate frame Nothing =
 quartzUpdate frame (Just stack) =
   traverse_ (\(w, r) => quartzTileWindow w r) (toList (columnLayout frame stack))
 
-quartzRefresh : QuartzState -> IO ()
+quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
   wids <- quartzGetWindows
   let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace Nothing) wids
   quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) (case workspace of MkWorkspace s => s)
+  return (screenWorkspace' . stackSetCurrent' . irStateStackSet' ^= workspace $ s)
 
 instance Handler (IREffect QuartzWindow QuartzSpace) IO where
   handle () GetEvent k = do
@@ -67,8 +69,8 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
   handle () (HandleEvent s (KeyEvent key)) k = do
     k s ()
   handle () (HandleEvent s RefreshEvent) k = do
-    quartzRefresh s
-    k s ()
+    s' <- quartzRefresh s
+    k s' ()
   handle () (HandleEvent s IgnoredEvent) k = do
     k s ()
   handle () (TileWindow wid r) k = do

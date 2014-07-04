@@ -2,6 +2,7 @@ module IR
 
 import Effect.State
 import IR.Event
+import IR.Lens
 
 %default total
 
@@ -28,15 +29,24 @@ record Screen : Type -> Type -> Type where
              (screenDetail : Rectangle) ->
              Screen wid sid
 
+screenWorkspace' : Lens (Screen wid sid) (Workspace wid)
+screenWorkspace' = lens (\(MkScreen x _ _) => x) (\x, (MkScreen _ a b) => MkScreen x a b)
+
 record StackSet : Type -> Type -> Type where
   MkStackSet : (stackSetCurrent : Screen wid sid) ->
                (stackSetVisible : List (Screen wid sid)) ->
                (stackSetHidden  : List (Workspace wid)) ->
                StackSet wid sid
 
+stackSetCurrent' : Lens (StackSet wid sid) (Screen wid sid)
+stackSetCurrent' = lens (\(MkStackSet x _ _) => x) (\x, (MkStackSet _ a b) => MkStackSet x a b)
+
 record IRState : Type -> Type -> Type where
   MkIRState : (irStateStackSet : StackSet wid sid) ->
               IRState wid sid
+
+irStateStackSet' : Lens (IRState wid sid) (StackSet wid sid)
+irStateStackSet' = lens (\(MkIRState x) => x) (\x, (MkIRState _) => MkIRState x)
 
 data IREffect : Type -> Type -> Effect where
   GetEvent : { () } (IREffect wid sid) Event
