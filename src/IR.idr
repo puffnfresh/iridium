@@ -31,12 +31,38 @@ record Stack : Type -> Type where
             (stackDown : List wid) ->
             Stack wid
 
+stackLength : Stack wid -> Nat
+stackLength (MkStack _ ys zs) = S (length ys + length zs)
+
+integrate : (s : Stack wid) -> Vect (stackLength s) wid
+integrate (MkStack x ys zs) =
+  rewrite plusSuccRightSucc (length ys) (length zs)
+  in reverse (fromList ys) ++ x :: fromList zs
+
+LayoutF : Type -> Type
+LayoutF wid = Rectangle -> (s : Stack wid) -> Vect (stackLength s) (wid, Rectangle)
+
+record Layout : Type -> Type where
+  MkLayout : (layoutPure : LayoutF wid) ->
+             (layoutNext : Inf (Layout wid)) ->
+             Layout wid
+
+layoutPure' : Lens (Layout wid) (LayoutF wid)
+layoutPure' = lens (\(MkLayout x _) => x) (\x, (MkLayout _ a) => MkLayout x a)
+
+layoutNext' : Lens (Layout wid) (Layout wid)
+layoutNext' = lens (\(MkLayout _ x) => x) (\x, (MkLayout a _) => MkLayout a x)
+
 record Workspace : Type -> Type where
-  MkWorkspace : (workspaceStack : Maybe (Stack wid)) ->
+  MkWorkspace : (workspaceLayout : Layout wid) ->
+                (workspaceStack : Maybe (Stack wid)) ->
                 Workspace wid
 
+workspaceLayout' : Lens (Workspace wid) (Layout wid)
+workspaceLayout' = lens (\(MkWorkspace x _) => x) (\x, (MkWorkspace _ a) => MkWorkspace x a)
+
 workspaceStack' : Lens (Workspace wid) (Maybe (Stack wid))
-workspaceStack' = lens (\(MkWorkspace x) => x) (\x, (MkWorkspace _) => MkWorkspace x)
+workspaceStack' = lens (\(MkWorkspace _ x) => x) (\x, (MkWorkspace a _) => MkWorkspace a x)
 
 record Screen : Type -> Type -> Type where
   MkScreen : (screenWorkspace : Workspace wid) ->

@@ -1,7 +1,8 @@
 module IR.Layout
 
 import IR
-import IR.StackSet
+
+%default total
 
 column : Rectangle -> (n : Nat) -> Vect n Rectangle
 column r n = column' n r n
@@ -10,14 +11,20 @@ column r n = column' n r n
           let w' = w / fromInteger (toIntegerNat n)
           in MkRectangle (x + w' * fromInteger (toIntegerNat m)) y w' h :: column' n r m
 
-Layout : Type -> Type
-Layout wid = Rectangle -> (s : Stack wid) -> Vect (stackLength s) (wid, Rectangle)
-
-fullLayout : Layout wid
+fullLayout : LayoutF wid
 fullLayout rect s = zip (integrate s) (replicate (stackLength s) rect)
 
-columnLayout : Layout wid
+columnLayout : LayoutF wid
 columnLayout rect s = zip (integrate s) (column rect (stackLength s))
 
-mirrorLayout : Layout wid -> Layout wid
+mirrorLayout : LayoutF wid -> LayoutF wid
 mirrorLayout l (MkRectangle x' y' w' h') s = map (\(wid, MkRectangle x y w h) => (wid, MkRectangle ((y - y') / h' * w' + x') ((x - x') / w' * h' + y') (h / h' * w') (w / w' * h'))) (l (MkRectangle x' y' w' h') s)
+
+single : LayoutF wid -> Layout wid
+single l = x
+  where x = MkLayout l x
+
+choose : Vect (S n) (LayoutF wid) -> Layout wid
+choose {n} (x::xs) =
+  let xs' : Vect (S n) (LayoutF wid) = rewrite plusCommutative 1 n in xs ++ [x]
+  in MkLayout x (choose xs')

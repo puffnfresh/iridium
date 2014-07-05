@@ -48,18 +48,23 @@ quartzTileWindow : QuartzWindow -> Rectangle -> IO ()
 quartzTileWindow wid r =
   mkForeign (FFun "quartzWindowSetRect" [FInt, FFloat, FFloat, FFloat, FFloat] FUnit) wid (rectX r) (rectY r) (rectW r) (rectH r)
 
-quartzUpdate : Rectangle -> Maybe (Stack QuartzWindow) -> IO ()
-quartzUpdate frame Nothing =
+quartzUpdate : Rectangle -> Workspace QuartzWindow -> IO ()
+quartzUpdate _ (MkWorkspace _ Nothing) =
   return ()
-quartzUpdate frame (Just stack) =
-  traverse_ (uncurry quartzTileWindow) (toList (columnLayout frame stack))
+quartzUpdate frame (MkWorkspace l (Just stack)) =
+  traverse_ (uncurry quartzTileWindow) (toList ((layoutPure' ^$ l) frame stack))
 
 quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
   wids <- quartzGetWindows
-  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace Nothing) wids
-  quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) (workspaceStack' ^$ workspace)
+  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^$ s) Nothing) wids
+  quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) workspace
   return (screenWorkspace' . stackSetCurrent' . irStateStackSet' ^= workspace $ s)
+
+quartzNextLayout : QuartzState -> IO QuartzState
+quartzNextLayout s = do
+  let s' = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext' $ s
+  quartzRefresh s'
 
 instance Handler (IREffect QuartzWindow QuartzSpace) IO where
   handle () GetEvent k = do
@@ -67,7 +72,8 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     e <- eventFromPtr p
     k e ()
   handle () (HandleEvent s (KeyEvent key)) k = do
-    k s ()
+    s' <- quartzNextLayout s
+    k s' ()
   handle () (HandleEvent s RefreshEvent) k = do
     s' <- quartzRefresh s
     k s' ()
@@ -89,11 +95,11 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     k (0 ** [MkRectangle x y w h]) ()
 
 instance Default QuartzState where
-  default = MkIRState (MkStackSet (MkScreen (MkWorkspace Nothing) 0 (MkRectangle 0 0 0 0)) [] [])
+  default = MkIRState (MkStackSet (MkScreen (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout]) Nothing) 0 (MkRectangle 0 0 0 0)) [] [])
 
 initialColumns : Rectangle -> Workspace QuartzWindow -> { [QUARTZ] } Eff IO ()
-initialColumns frame (MkWorkspace Nothing) = return ()
-initialColumns frame (MkWorkspace (Just stack)) = f (toList (columnLayout frame stack))
+initialColumns frame (MkWorkspace _ Nothing) = return ()
+initialColumns frame (MkWorkspace l (Just stack)) = f (toList ((layoutPure' ^$ l) frame stack))
   where f ((w, r) :: xs) = do
           tileWindow w r
           f xs
@@ -103,7 +109,7 @@ initialQuartzState : { [QUARTZ, STATE (IRState QuartzWindow QuartzSpace)] } Eff 
 initialQuartzState = do
   (_ ** frame :: _) <- getFrames
   wids <- getWindows
-  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace Nothing) wids
+  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout]) Nothing) wids
   put (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
   initialColumns frame workspace
 
