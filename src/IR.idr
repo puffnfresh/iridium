@@ -13,6 +13,18 @@ record Rectangle : Type where
                 (rectH : Float) ->
                 Rectangle
 
+rectX' : Lens Rectangle Float
+rectX' = lens (\(MkRectangle x _ _ _) => x) (\x, (MkRectangle _ a b c) => MkRectangle x a b c)
+
+rectY' : Lens Rectangle Float
+rectY' = lens (\(MkRectangle _ x _ _) => x) (\x, (MkRectangle a _ b c) => MkRectangle a x b c)
+
+rectW' : Lens Rectangle Float
+rectW' = lens (\(MkRectangle _ _ x _) => x) (\x, (MkRectangle a b _ c) => MkRectangle a b x c)
+
+rectH' : Lens Rectangle Float
+rectH' = lens (\(MkRectangle _ _ _ x) => x) (\x, (MkRectangle a b c _) => MkRectangle a b c x)
+
 record Stack : Type -> Type where
   MkStack : (stackFocus : wid) ->
             (stackUp : List wid) ->
