@@ -97,7 +97,7 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
 instance Default QuartzState where
   default = MkIRState (MkStackSet (MkScreen (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout]) Nothing) 0 (MkRectangle 0 0 0 0)) [] [])
 
-initialColumns : Rectangle -> Workspace QuartzWindow -> { [QUARTZ] } Eff IO ()
+initialColumns : Rectangle -> Workspace QuartzWindow -> { [QUARTZ] } Eff ()
 initialColumns frame (MkWorkspace _ Nothing) = return ()
 initialColumns frame (MkWorkspace l (Just stack)) = f (toList ((layoutPure' ^$ l) frame stack))
   where f ((w, r) :: xs) = do
@@ -105,7 +105,7 @@ initialColumns frame (MkWorkspace l (Just stack)) = f (toList ((layoutPure' ^$ l
           f xs
         f [] = return ()
 
-initialQuartzState : { [QUARTZ, STATE (IRState QuartzWindow QuartzSpace)] } Eff IO ()
+initialQuartzState : { [QUARTZ, STATE (IRState QuartzWindow QuartzSpace)] } Eff ()
 initialQuartzState = do
   (_ ** frame :: _) <- getFrames
   wids <- getWindows

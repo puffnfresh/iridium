@@ -99,23 +99,23 @@ data IREffect : Type -> Type -> Effect where
 IR : Type -> Type -> EFFECT
 IR wid sid = MkEff () (IREffect wid sid)
 
-getEvent : { [IR wid sid] } Eff e Event
+getEvent : { [IR wid sid] } Eff Event
 getEvent = call GetEvent
 
-handleEvent : IRState wid sid -> Event -> { [IR wid sid] } Eff e (IRState wid sid)
+handleEvent : IRState wid sid -> Event -> { [IR wid sid] } Eff (IRState wid sid)
 handleEvent s e = call (HandleEvent s e)
 
-getFrames : { [IR wid sid] } Eff e (n ** Vect (S n) Rectangle)
+getFrames : { [IR wid sid] } Eff (n ** Vect (S n) Rectangle)
 getFrames = call GetFrames
 
-getWindows : { [IR wid sid] } Eff e (List wid)
+getWindows : { [IR wid sid] } Eff (List wid)
 getWindows = call GetWindows
 
-tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff e ()
+tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff ()
 tileWindow wid rect = call (TileWindow wid rect)
 
 partial
-runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff IO ()
+runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
 runIR = do
   e <- getEvent
   s <- get
