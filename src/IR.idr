@@ -1,5 +1,6 @@
 module IR
 
+import Control.Monad.Identity
 import Effect.State
 import IR.Event
 import IR.Lens
@@ -73,6 +74,9 @@ record Screen : Type -> Type -> Type where
 screenWorkspace' : Lens (Screen wid sid) (Workspace wid)
 screenWorkspace' = lens (\(MkScreen x _ _) => x) (\x, (MkScreen _ a b) => MkScreen x a b)
 
+screenDetail' : Lens (Screen wid sid) Rectangle
+screenDetail' = lens (\(MkScreen _ _ x) => x) (\x, (MkScreen a b _) => MkScreen a b x)
+
 record StackSet : Type -> Type -> Type where
   MkStackSet : (stackSetCurrent : Screen wid sid) ->
                (stackSetVisible : List (Screen wid sid)) ->
@@ -115,10 +119,23 @@ tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff ()
 tileWindow wid rect = call (TileWindow wid rect)
 
 partial
-runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
-runIR = do
+runIR' : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+runIR' = do
   e <- getEvent
   s <- get
   s' <- handleEvent s e
   put s'
-  runIR
+  runIR'
+
+-- TODO: Use the layout when initially running.
+partial
+runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+runIR = do
+  s <- get
+  let r : Rectangle = screenDetail' . stackSetCurrent' . irStateStackSet' ^$ s
+  -- Idris bug: maybe doesn't work here, have to use fromMaybe
+  let wids = fromMaybe [] (map (\stack => toList (integrate stack)) (workspaceStack' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^$ s))
+  -- Idris bug: there's a useless `Applicative m` constraint, supply Identity to get this to compile:
+  -- https://github.com/idris-lang/Idris-dev/pull/1364
+  mapE {m=Identity} (\wid => tileWindow wid r) wids
+  runIR'

@@ -64,6 +64,16 @@ quartzRefresh s = do
 quartzNextLayout : QuartzState -> QuartzState
 quartzNextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
 
+quartzGetFrames : IO (n ** Vect (S n) Rectangle)
+quartzGetFrames = do
+  p <- mkForeign (FFun "quartzMainFrame" [] FPtr)
+  x <- mkForeign (FFun "irFrameX" [FPtr] FFloat) p
+  y <- mkForeign (FFun "irFrameY" [FPtr] FFloat) p
+  w <- mkForeign (FFun "irFrameW" [FPtr] FFloat) p
+  h <- mkForeign (FFun "irFrameH" [FPtr] FFloat) p
+  mkForeign (FFun "irFrameFree" [FPtr] FUnit) p
+  return (0 ** [MkRectangle x y w h])
+
 instance Handler (IREffect QuartzWindow QuartzSpace) IO where
   handle () GetEvent k = do
     p <- mkForeign (FFun "quartzEvent" [] FPtr)
@@ -85,32 +95,15 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     wids <- quartzGetWindows
     k wids ()
   handle () GetFrames k = do
-    p <- mkForeign (FFun "quartzMainFrame" [] FPtr)
-    x <- mkForeign (FFun "irFrameX" [FPtr] FFloat) p
-    y <- mkForeign (FFun "irFrameY" [FPtr] FFloat) p
-    w <- mkForeign (FFun "irFrameW" [FPtr] FFloat) p
-    h <- mkForeign (FFun "irFrameH" [FPtr] FFloat) p
-    mkForeign (FFun "irFrameFree" [FPtr] FUnit) p
-    k (0 ** [MkRectangle x y w h]) ()
+    f <- quartzGetFrames
+    k f ()
 
-instance Default QuartzState where
-  default = MkIRState (MkStackSet (MkScreen (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout]) Nothing) 0 (MkRectangle 0 0 0 0)) [] [])
-
-initialColumns : Rectangle -> Workspace QuartzWindow -> { [QUARTZ] } Eff ()
-initialColumns frame (MkWorkspace _ Nothing) = return ()
-initialColumns frame (MkWorkspace l (Just stack)) = f (toList ((layoutPure' ^$ l) frame stack))
-  where f ((w, r) :: xs) = do
-          tileWindow w r
-          f xs
-        f [] = return ()
-
-initialQuartzState : { [QUARTZ, STATE (IRState QuartzWindow QuartzSpace)] } Eff ()
+initialQuartzState : IO (IRState QuartzWindow QuartzSpace)
 initialQuartzState = do
-  (_ ** frame :: _) <- getFrames
-  wids <- getWindows
-  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout]) Nothing) wids
-  put (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
-  initialColumns frame workspace
+  (_ ** frame :: _) <- quartzGetFrames
+  wids <- quartzGetWindows
+  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout, fullLayout]) Nothing) wids
+  return (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
 
 partial
 main : IO ()
@@ -121,6 +114,6 @@ main = do
   then do
     putErrLn "iridium doesn't have Accessibility permission."
     putErrLn "You can enable this under Privacy in Security & Privacy in System Preferences."
-  else run $ do
-    initialQuartzState
-    runIR
+  else do
+    s <- initialQuartzState
+    runInit [(), s] runIR
