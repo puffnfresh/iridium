@@ -1,5 +1,7 @@
 module IR.Event
 
+import IR.Lens
+
 KeyCode : Type
 KeyCode = Int
 
@@ -10,6 +12,21 @@ record Key : Type where
           (keyHasCtrl : Bool) ->
           (keyHasShift : Bool) ->
           Key
+
+keyCode' : Lens Key KeyCode
+keyCode' = lens (\(MkKey x _ _ _ _) => x) (\x, (MkKey _ a b c d) => MkKey x a b c d)
+
+keyHasAlt' : Lens Key Bool
+keyHasAlt' = lens (\(MkKey _ x _ _ _) => x) (\x, (MkKey a _ b c d) => MkKey a x b c d)
+
+keyHasCmd' : Lens Key Bool
+keyHasCmd' = lens (\(MkKey _ _ x _ _) => x) (\x, (MkKey a b _ c d) => MkKey a b x c d)
+
+keyHasCtrl' : Lens Key Bool
+keyHasCtrl' = lens (\(MkKey _ _ _ x _) => x) (\x, (MkKey a b c _ d) => MkKey a b c x d)
+
+keyHasShift' : Lens Key Bool
+keyHasShift' = lens (\(MkKey _ _ _ _ x) => x) (\x, (MkKey a b c d _) => MkKey a b c d x)
 
 data Event = KeyEvent Key
            | RefreshEvent

@@ -61,10 +61,8 @@ quartzRefresh s = do
   quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) workspace
   return (screenWorkspace' . stackSetCurrent' . irStateStackSet' ^= workspace $ s)
 
-quartzNextLayout : QuartzState -> IO QuartzState
-quartzNextLayout s = do
-  let s' = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext' $ s
-  quartzRefresh s'
+quartzNextLayout : QuartzState -> QuartzState
+quartzNextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
 
 instance Handler (IREffect QuartzWindow QuartzSpace) IO where
   handle () GetEvent k = do
@@ -72,8 +70,9 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     e <- eventFromPtr p
     k e ()
   handle () (HandleEvent s (KeyEvent key)) k = do
-    s' <- quartzNextLayout s
-    k s' ()
+    if (keyHasCmd' ^$ key) && (keyHasAlt' ^$ key)
+    then handle () (HandleEvent (quartzNextLayout s) RefreshEvent) k
+    else k s ()
   handle () (HandleEvent s RefreshEvent) k = do
     s' <- quartzRefresh s
     k s' ()
