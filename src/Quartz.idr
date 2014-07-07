@@ -114,6 +114,4 @@ main = do
   then do
     putErrLn "iridium doesn't have Accessibility permission."
     putErrLn "You can enable this under Privacy in Security & Privacy in System Preferences."
-  else do
-    s <- initialQuartzState
-    runInit [(), s] runIR
+  else runInit [(), !initialQuartzState] runIR

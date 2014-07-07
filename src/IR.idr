@@ -132,10 +132,16 @@ partial
 runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
 runIR = do
   s <- get
-  let r : Rectangle = screenDetail' . stackSetCurrent' . irStateStackSet' ^$ s
+  let screen = stackSetCurrent' . irStateStackSet' ^$ s
+  let frame : Rectangle = screenDetail' ^$ screen
   -- Idris bug: maybe doesn't work here, have to use fromMaybe
-  let wids = fromMaybe [] (map (\stack => toList (integrate stack)) (workspaceStack' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^$ s))
+  let maybeStack = workspaceStack' . screenWorkspace' ^$ screen
+  let l = layoutPure' . workspaceLayout' . screenWorkspace' ^$ screen
   -- Idris bug: there's a useless `Applicative m` constraint, supply Identity to get this to compile:
   -- https://github.com/idris-lang/Idris-dev/pull/1364
-  mapE {m=Identity} (\wid => tileWindow wid r) wids
+  case maybeStack of
+    Just stack => do
+      mapE {m=Identity} (\(wid, rect) => tileWindow wid rect) (toList (l frame stack))
+      return ()
+    Nothing => return ()
   runIR'
