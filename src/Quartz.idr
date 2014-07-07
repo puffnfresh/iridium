@@ -61,9 +61,6 @@ quartzRefresh s = do
   quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) workspace
   return (screenWorkspace' . stackSetCurrent' . irStateStackSet' ^= workspace $ s)
 
-quartzNextLayout : QuartzState -> QuartzState
-quartzNextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
-
 quartzGetFrames : IO (n ** Vect (S n) Rectangle)
 quartzGetFrames = do
   p <- mkForeign (FFun "quartzMainFrame" [] FPtr)
@@ -79,15 +76,9 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     p <- mkForeign (FFun "quartzEvent" [] FPtr)
     e <- eventFromPtr p
     k e ()
-  handle () (HandleEvent s (KeyEvent key)) k = do
-    if (keyHasCmd' ^$ key) && (keyHasAlt' ^$ key)
-    then handle () (HandleEvent (quartzNextLayout s) RefreshEvent) k
-    else k s ()
-  handle () (HandleEvent s RefreshEvent) k = do
+  handle () (Refresh s) k = do
     s' <- quartzRefresh s
     k s' ()
-  handle () (HandleEvent s IgnoredEvent) k = do
-    k s ()
   handle () (TileWindow wid r) k = do
     quartzTileWindow wid r
     k () ()

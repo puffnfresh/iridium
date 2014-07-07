@@ -95,7 +95,7 @@ irStateStackSet' = lens (\(MkIRState x) => x) (\x, (MkIRState _) => MkIRState x)
 
 data IREffect : Type -> Type -> Effect where
   GetEvent : { () } (IREffect wid sid) Event
-  HandleEvent : IRState wid sid -> Event -> { () } (IREffect wid sid) (IRState wid sid)
+  Refresh : IRState wid sid -> { () } (IREffect wid sid) (IRState wid sid)
   GetFrames : { () } (IREffect wid sid) (n ** Vect (S n) Rectangle)
   GetWindows : { () } (IREffect wid sid) (List wid)
   TileWindow : wid -> Rectangle -> { () } (IREffect wid sid) ()
@@ -106,8 +106,11 @@ IR wid sid = MkEff () (IREffect wid sid)
 getEvent : { [IR wid sid] } Eff Event
 getEvent = call GetEvent
 
-handleEvent : IRState wid sid -> Event -> { [IR wid sid] } Eff (IRState wid sid)
-handleEvent s e = call (HandleEvent s e)
+refresh : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+refresh = do
+  s <- get
+  s' <- call (Refresh s)
+  put s'
 
 getFrames : { [IR wid sid] } Eff (n ** Vect (S n) Rectangle)
 getFrames = call GetFrames
@@ -118,13 +121,24 @@ getWindows = call GetWindows
 tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff ()
 tileWindow wid rect = call (TileWindow wid rect)
 
+nextLayout : IRState wid sid -> IRState wid sid
+nextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
+
+handleEvent : Event -> { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+handleEvent RefreshEvent = refresh
+handleEvent (KeyEvent key) =
+  if (keyHasCmd' ^$ key) && (keyHasAlt' ^$ key)
+  then do
+    update nextLayout
+    refresh
+  else return ()
+handleEvent IgnoredEvent = return ()
+
 partial
 runIR' : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
 runIR' = do
   e <- getEvent
-  s <- get
-  s' <- handleEvent s e
-  put s'
+  handleEvent e
   runIR'
 
 -- TODO: Use the layout when initially running.
