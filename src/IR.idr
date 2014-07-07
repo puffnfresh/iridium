@@ -141,7 +141,7 @@ runIR = do
   -- https://github.com/idris-lang/Idris-dev/pull/1364
   case maybeStack of
     Just stack => do
-      mapE {m=Identity} (\(wid, rect) => tileWindow wid rect) (toList (l frame stack))
+      mapVE {m=Identity} (uncurry tileWindow) (l frame stack)
       return ()
     Nothing => return ()
   runIR'
