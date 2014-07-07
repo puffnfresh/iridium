@@ -48,17 +48,10 @@ quartzTileWindow : QuartzWindow -> Rectangle -> IO ()
 quartzTileWindow wid r =
   mkForeign (FFun "quartzWindowSetRect" [FInt, FFloat, FFloat, FFloat, FFloat] FUnit) wid (rectX r) (rectY r) (rectW r) (rectH r)
 
-quartzUpdate : Rectangle -> Workspace QuartzWindow -> IO ()
-quartzUpdate _ (MkWorkspace _ Nothing) =
-  return ()
-quartzUpdate frame (MkWorkspace l (Just stack)) =
-  traverse_ (uncurry quartzTileWindow) (toList ((layoutPure' ^$ l) frame stack))
-
 quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
   wids <- quartzGetWindows
   let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^$ s) Nothing) wids
-  quartzUpdate (screenDetail (stackSetCurrent (irStateStackSet s))) workspace
   return (screenWorkspace' . stackSetCurrent' . irStateStackSet' ^= workspace $ s)
 
 quartzGetFrames : IO (n ** Vect (S n) Rectangle)
@@ -76,7 +69,7 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     p <- mkForeign (FFun "quartzEvent" [] FPtr)
     e <- eventFromPtr p
     k e ()
-  handle () (Refresh s) k = do
+  handle () (RefreshState s) k = do
     s' <- quartzRefresh s
     k s' ()
   handle () (TileWindow wid r) k = do

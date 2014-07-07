@@ -95,7 +95,7 @@ irStateStackSet' = lens (\(MkIRState x) => x) (\x, (MkIRState _) => MkIRState x)
 
 data IREffect : Type -> Type -> Effect where
   GetEvent : { () } (IREffect wid sid) Event
-  Refresh : IRState wid sid -> { () } (IREffect wid sid) (IRState wid sid)
+  RefreshState : IRState wid sid -> { () } (IREffect wid sid) (IRState wid sid)
   GetFrames : { () } (IREffect wid sid) (n ** Vect (S n) Rectangle)
   GetWindows : { () } (IREffect wid sid) (List wid)
   TileWindow : wid -> Rectangle -> { () } (IREffect wid sid) ()
@@ -106,20 +106,37 @@ IR wid sid = MkEff () (IREffect wid sid)
 getEvent : { [IR wid sid] } Eff Event
 getEvent = call GetEvent
 
+tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff ()
+tileWindow wid rect = call (TileWindow wid rect)
+
+runLayout : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+runLayout = do
+  s <- get
+  let screen = stackSetCurrent' . irStateStackSet' ^$ s
+  let frame : Rectangle = screenDetail' ^$ screen
+  -- Idris bug: maybe doesn't work here, have to use fromMaybe
+  let maybeStack = workspaceStack' . screenWorkspace' ^$ screen
+  let l = layoutPure' . workspaceLayout' . screenWorkspace' ^$ screen
+  -- Idris bug: there's a useless `Applicative m` constraint, supply Identity to get this to compile:
+  -- https://github.com/idris-lang/Idris-dev/pull/1364
+  case maybeStack of
+    Just stack => do
+      mapVE {m=Identity} (uncurry tileWindow) (l frame stack)
+      return ()
+    Nothing => return ()
+
 refresh : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
 refresh = do
   s <- get
-  s' <- call (Refresh s)
+  s' <- call (RefreshState s)
   put s'
+  runLayout
 
 getFrames : { [IR wid sid] } Eff (n ** Vect (S n) Rectangle)
 getFrames = call GetFrames
 
 getWindows : { [IR wid sid] } Eff (List wid)
 getWindows = call GetWindows
-
-tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff ()
-tileWindow wid rect = call (TileWindow wid rect)
 
 nextLayout : IRState wid sid -> IRState wid sid
 nextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
@@ -141,21 +158,8 @@ runIR' = do
   handleEvent e
   runIR'
 
--- TODO: Use the layout when initially running.
 partial
 runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
 runIR = do
-  s <- get
-  let screen = stackSetCurrent' . irStateStackSet' ^$ s
-  let frame : Rectangle = screenDetail' ^$ screen
-  -- Idris bug: maybe doesn't work here, have to use fromMaybe
-  let maybeStack = workspaceStack' . screenWorkspace' ^$ screen
-  let l = layoutPure' . workspaceLayout' . screenWorkspace' ^$ screen
-  -- Idris bug: there's a useless `Applicative m` constraint, supply Identity to get this to compile:
-  -- https://github.com/idris-lang/Idris-dev/pull/1364
-  case maybeStack of
-    Just stack => do
-      mapVE {m=Identity} (uncurry tileWindow) (l frame stack)
-      return ()
-    Nothing => return ()
+  runLayout
   runIR'
