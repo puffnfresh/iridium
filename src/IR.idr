@@ -121,7 +121,7 @@ runLayout = do
   -- https://github.com/idris-lang/Idris-dev/pull/1364
   case maybeStack of
     Just stack => do
-      mapVE {m=Identity} (uncurry tileWindow) (l frame stack)
+      mapVE (uncurry tileWindow) (l frame stack)
       return ()
     Nothing => return ()
 
