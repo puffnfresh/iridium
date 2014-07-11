@@ -154,7 +154,7 @@ handleEvent : Event -> { [IR wid sid, STATE (IRState wid sid), READER (IRConf wi
 handleEvent RefreshEvent = refresh
 handleEvent (KeyEvent key) = do
   conf <- ask
-  let m = the (Maybe ({ [IR wid sid, STATE (IRState wid sid)] } Eff ())) (lookup key (irConfKeyActions' ^$ conf))
+  let m = lookup key (irConfKeyActions' ^$ conf)
   fromMaybe (return ()) m
   return ()
 handleEvent IgnoredEvent = return ()
