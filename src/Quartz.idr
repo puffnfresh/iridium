@@ -89,6 +89,9 @@ initialQuartzState = do
   let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout, fullLayout]) Nothing) wids
   return (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
 
+quartzConf : IRConf QuartzWindow QuartzSpace
+quartzConf = MkIRConf (insert (MkKey 49 True True False False) (update nextLayout >>= \_ => refresh) empty)
+
 partial
 main : IO ()
 main = do
@@ -98,4 +101,4 @@ main = do
   then do
     putErrLn "iridium doesn't have Accessibility permission."
     putErrLn "You can enable this under Privacy in Security & Privacy in System Preferences."
-  else runInit [(), !initialQuartzState] runIR
+  else runInit [(), !initialQuartzState, quartzConf] runIR

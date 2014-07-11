@@ -13,6 +13,29 @@ record Key : Type where
           (keyHasShift : Bool) ->
           Key
 
+instance Eq Key where
+  (==) (MkKey a b c d e) (MkKey a' b' c' d' e') = a == a' && b == b' && c == c' && d == d' && e == e'
+
+-- Should be the Monoid instance:
+infixl 3 <!>
+(<!>) : Ordering -> Ordering -> Ordering
+(<!>) EQ r = r
+(<!>) l  r = l
+
+-- Should be the Ord instance:
+compareBool : Bool -> Bool -> Ordering
+compareBool False False = EQ
+compareBool False True = LT
+compareBool True False = GT
+compareBool True True = EQ
+
+instance Ord Key where
+  compare (MkKey a b c d e) (MkKey a' b' c' d' e') = compare a a'
+                                                 <!> compareBool b b'
+                                                 <!> compareBool c c'
+                                                 <!> compareBool d d'
+                                                 <!> compareBool e e'
+
 keyCode' : Lens Key KeyCode
 keyCode' = lens (\(MkKey x _ _ _ _) => x) (\x, (MkKey _ a b c d) => MkKey x a b c d)
 

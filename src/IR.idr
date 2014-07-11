@@ -1,9 +1,11 @@
 module IR
 
 import Control.Monad.Identity
+import Data.SortedMap
 import Effect.State
 import IR.Event
 import IR.Lens
+import IR.Reader
 
 %default total
 
@@ -103,6 +105,13 @@ data IREffect : Type -> Type -> Effect where
 IR : Type -> Type -> EFFECT
 IR wid sid = MkEff () (IREffect wid sid)
 
+record IRConf : Type -> Type -> Type where
+  MkIRConf : (irConfKeyActions : SortedMap Key ({ [IR wid sid, STATE (IRState wid sid)] } Eff ())) ->
+             IRConf wid sid
+
+irConfKeyActions' : Lens (IRConf wid sid) (SortedMap Key ({ [IR wid sid, STATE (IRState wid sid)] } Eff ()))
+irConfKeyActions' = lens (\(MkIRConf x) => x) (\x, (MkIRConf _) => MkIRConf x)
+
 getEvent : { [IR wid sid] } Eff Event
 getEvent = call GetEvent
 
@@ -141,25 +150,24 @@ getWindows = call GetWindows
 nextLayout : IRState wid sid -> IRState wid sid
 nextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
 
-handleEvent : Event -> { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+handleEvent : Event -> { [IR wid sid, STATE (IRState wid sid), READER (IRConf wid sid)] } Eff ()
 handleEvent RefreshEvent = refresh
-handleEvent (KeyEvent key) =
-  if (keyHasCmd' ^$ key) && (keyHasAlt' ^$ key)
-  then do
-    update nextLayout
-    refresh
-  else return ()
+handleEvent (KeyEvent key) = do
+  conf <- ask
+  let m = the (Maybe ({ [IR wid sid, STATE (IRState wid sid)] } Eff ())) (lookup key (irConfKeyActions' ^$ conf))
+  fromMaybe (return ()) m
+  return ()
 handleEvent IgnoredEvent = return ()
 
 partial
-runIR' : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+runIR' : { [IR wid sid, STATE (IRState wid sid), READER (IRConf wid sid)] } Eff ()
 runIR' = do
   e <- getEvent
   handleEvent e
   runIR'
 
 partial
-runIR : { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+runIR : { [IR wid sid, STATE (IRState wid sid), READER (IRConf wid sid)] } Eff ()
 runIR = do
   runLayout
   runIR'
