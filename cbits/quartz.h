@@ -18,3 +18,4 @@ int quartzWindowId(QuartzWindows *windows, int index);
 int quartzWindowsLength(QuartzWindows *windows);
 
 void quartzWindowSetRect(int wid, double x, double y, double w, double h);
+void quartzWindowSetFocus(int wid);

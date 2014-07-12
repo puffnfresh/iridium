@@ -48,6 +48,10 @@ quartzTileWindow : QuartzWindow -> Rectangle -> IO ()
 quartzTileWindow wid r =
   mkForeign (FFun "quartzWindowSetRect" [FInt, FFloat, FFloat, FFloat, FFloat] FUnit) wid (rectX r) (rectY r) (rectW r) (rectH r)
 
+quartzFocusWindow : QuartzWindow -> IO ()
+quartzFocusWindow wid =
+  mkForeign (FFun "quartzWindowSetFocus" [FInt] FUnit) wid
+
 quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
   wids <- quartzGetWindows
@@ -69,11 +73,17 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     p <- mkForeign (FFun "quartzEvent" [] FPtr)
     e <- eventFromPtr p
     k e ()
+  handle () (GrabKeys keys) k = do
+    -- TODO: ignore these keys
+    k () ()
   handle () (RefreshState s) k = do
     s' <- quartzRefresh s
     k s' ()
   handle () (TileWindow wid r) k = do
     quartzTileWindow wid r
+    k () ()
+  handle () (SetFocus wid) k = do
+    quartzFocusWindow wid
     k () ()
   handle () GetWindows k = do
     wids <- quartzGetWindows
@@ -90,7 +100,11 @@ initialQuartzState = do
   return (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
 
 quartzConf : IRConf QuartzWindow QuartzSpace
-quartzConf = MkIRConf (insert (MkKey 49 True True False False) (update nextLayout >>= \_ => refresh) empty)
+quartzConf =
+  MkIRConf (fromList [
+    (MkKey 49 True True False False, update nextLayout >>= \_ => refresh)
+  , (MkKey 38 True True False False, windows focusDown)
+  ])
 
 partial
 main : IO ()

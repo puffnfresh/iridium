@@ -34,6 +34,9 @@ record Stack : Type -> Type where
             (stackDown : List wid) ->
             Stack wid
 
+stackFocus' : Lens (Stack wid) wid
+stackFocus' = lens (\(MkStack x _ _) => x) (\x, (MkStack _ a b) => MkStack x a b)
+
 stackLength : Stack wid -> Nat
 stackLength (MkStack _ ys zs) = S (length ys + length zs)
 
@@ -97,9 +100,11 @@ irStateStackSet' = lens (\(MkIRState x) => x) (\x, (MkIRState _) => MkIRState x)
 
 data IREffect : Type -> Type -> Effect where
   GetEvent : { () } (IREffect wid sid) Event
-  RefreshState : IRState wid sid -> { () } (IREffect wid sid) (IRState wid sid)
   GetFrames : { () } (IREffect wid sid) (n ** Vect (S n) Rectangle)
   GetWindows : { () } (IREffect wid sid) (List wid)
+  GrabKeys : List Key -> { () } (IREffect wid sid) ()
+  RefreshState : IRState wid sid -> { () } (IREffect wid sid) (IRState wid sid)
+  SetFocus : wid -> { () } (IREffect wid sid) ()
   TileWindow : wid -> Rectangle -> { () } (IREffect wid sid) ()
 
 IR : Type -> Type -> EFFECT
@@ -114,6 +119,12 @@ irConfKeyActions' = lens (\(MkIRConf x) => x) (\x, (MkIRConf _) => MkIRConf x)
 
 getEvent : { [IR wid sid] } Eff Event
 getEvent = call GetEvent
+
+grabKeys : List Key -> { [IR wid sid] } Eff ()
+grabKeys k = call (GrabKeys k)
+
+setFocus : wid -> { [IR wid sid] } Eff ()
+setFocus wid = call (SetFocus wid)
 
 tileWindow : wid -> Rectangle -> { [IR wid sid] } Eff ()
 tileWindow wid rect = call (TileWindow wid rect)
@@ -131,6 +142,7 @@ runLayout = do
   case maybeStack of
     Just stack => do
       mapVE (uncurry tileWindow) (l frame stack)
+      setFocus (stackFocus' ^$ stack)
       return ()
     Nothing => return ()
 
@@ -150,10 +162,27 @@ getWindows = call GetWindows
 nextLayout : IRState wid sid -> IRState wid sid
 nextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
 
+reverseStack : Stack wid -> Stack wid
+reverseStack (MkStack t ls rs) = MkStack t rs ls
+
+focusDown' : Stack wid -> Stack wid
+focusDown' (MkStack t [] []) = MkStack t [] []
+focusDown' (MkStack t ls (r::rs)) = MkStack r (t::ls) rs
+focusDown' (MkStack t (l::ls) []) = MkStack l [] (reverse (t::ls))
+
+focusDown : StackSet wid sid -> StackSet wid sid
+focusDown = workspaceStack' . screenWorkspace' . stackSetCurrent' ^%= map focusDown'
+
+windows : (StackSet wid sid -> StackSet wid sid) -> { [IR wid sid, STATE (IRState wid sid)] } Eff ()
+windows f = do
+  update (irStateStackSet' ^%= f)
+  runLayout
+
 handleEvent : Event -> { [IR wid sid, STATE (IRState wid sid), READER (IRConf wid sid)] } Eff ()
 handleEvent RefreshEvent = refresh
 handleEvent (KeyEvent key) = do
   conf <- ask
+  -- Idris bug: can't inline this let
   let m = lookup key (irConfKeyActions' ^$ conf)
   fromMaybe (return ()) m
   return ()
@@ -169,5 +198,7 @@ runIR' = do
 partial
 runIR : { [IR wid sid, STATE (IRState wid sid), READER (IRConf wid sid)] } Eff ()
 runIR = do
+  conf <- ask
+  grabKeys (map fst (toList (irConfKeyActions' ^$ conf)))
   runLayout
   runIR'

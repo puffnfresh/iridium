@@ -98,6 +98,19 @@ void quartzWindowSetRect(int wid, double x, double y, double w, double h) {
   CFRelease(window);
 }
 
+void quartzWindowSetFocus(int wid) {
+  AXUIElementRef window = quartzFindWindow(wid);
+
+  AXUIElementSetAttributeValue(window, kAXMainAttribute, kCFBooleanTrue);
+
+  CFTypeRef applicationRef;
+  AXUIElementCopyAttributeValue(window, kAXParentAttribute, &applicationRef);
+  AXUIElementSetAttributeValue(applicationRef, kAXFrontmostAttribute, kCFBooleanTrue);
+  CFRelease(applicationRef);
+
+  CFRelease(window);
+}
+
 void quartzWindowFree(void *window) {
   CFRelease(window);
 }
