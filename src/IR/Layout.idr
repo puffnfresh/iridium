@@ -1,6 +1,7 @@
 module IR.Layout
 
 import IR
+import IR.StackSet
 
 %default total
 

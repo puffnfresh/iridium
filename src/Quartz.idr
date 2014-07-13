@@ -4,7 +4,7 @@ import IR
 import IR.Event
 import IR.Layout
 import IR.Lens
-import IR.Workspace
+import IR.StackSet
 
 %flag C "-framework Cocoa"
 %include C "cbits/quartz.h"
@@ -55,8 +55,11 @@ quartzFocusWindow wid =
 quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
   wids <- quartzGetWindows
-  let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^$ s) Nothing) wids
-  return (screenWorkspace' . stackSetCurrent' . irStateStackSet' ^= workspace $ s)
+  let stack = workspaceStack' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^$ s
+  let wids' = fromMaybe [] (map (\s => toList (integrate s)) stack)
+  let deleted = wids' \\ wids
+  let inserted = wids \\ wids'
+  return (irStateStackSet' ^%= (\ss => foldr insertUp (foldr delete ss deleted) inserted) $ s)
 
 quartzGetFrames : IO (n ** Vect (S n) Rectangle)
 quartzGetFrames = do
@@ -68,13 +71,25 @@ quartzGetFrames = do
   mkForeign (FFun "irFrameFree" [FPtr] FUnit) p
   return (0 ** [MkRectangle x y w h])
 
+quartzGrabKeys : List Key -> IO ()
+quartzGrabKeys keys =
+  let grabKey = \key => do
+        let c = keyCode' ^$ key
+        let f = \b => if b then 1 else 0
+        let alt = f $ keyHasAlt' ^$ key
+        let cmd = f $ keyHasCmd' ^$ key
+        let ctrl = f $ keyHasCtrl' ^$ key
+        let shift = f $ keyHasShift' ^$ key
+        mkForeign (FFun "quartzGrabKey" [FInt, FInt, FInt, FInt, FInt] FUnit) c alt cmd ctrl shift
+  in traverse_ grabKey keys
+
 instance Handler (IREffect QuartzWindow QuartzSpace) IO where
   handle () GetEvent k = do
     p <- mkForeign (FFun "quartzEvent" [] FPtr)
     e <- eventFromPtr p
     k e ()
   handle () (GrabKeys keys) k = do
-    -- TODO: ignore these keys
+    quartzGrabKeys keys
     k () ()
   handle () (RefreshState s) k = do
     s' <- quartzRefresh s
@@ -104,6 +119,7 @@ quartzConf =
   MkIRConf (fromList [
     (MkKey 49 True True False False, update nextLayout >>= \_ => refresh)
   , (MkKey 38 True True False False, windows focusDown)
+  , (MkKey 40 True True False False, windows focusUp)
   ])
 
 partial

@@ -37,13 +37,14 @@ record Stack : Type -> Type where
 stackFocus' : Lens (Stack wid) wid
 stackFocus' = lens (\(MkStack x _ _) => x) (\x, (MkStack _ a b) => MkStack x a b)
 
+stackUp' : Lens (Stack wid) (List wid)
+stackUp' = lens (\(MkStack _ x _) => x) (\x, (MkStack a _ b) => MkStack a x b)
+
+stackDown' : Lens (Stack wid) (List wid)
+stackDown' = lens (\(MkStack _ _ x) => x) (\x, (MkStack a b _) => MkStack a b x)
+
 stackLength : Stack wid -> Nat
 stackLength (MkStack _ ys zs) = S (length ys + length zs)
-
-integrate : (s : Stack wid) -> Vect (stackLength s) wid
-integrate (MkStack x ys zs) =
-  rewrite plusSuccRightSucc (length ys) (length zs)
-  in reverse (fromList ys) ++ x :: fromList zs
 
 LayoutF : Type -> Type
 LayoutF wid = Rectangle -> (s : Stack wid) -> Vect (stackLength s) (wid, Rectangle)
@@ -161,22 +162,6 @@ getWindows = call GetWindows
 
 nextLayout : IRState wid sid -> IRState wid sid
 nextLayout = workspaceLayout' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^%= getL layoutNext'
-
-reverseStack : Stack wid -> Stack wid
-reverseStack (MkStack t ls rs) = MkStack t rs ls
-
-focusDown' : Stack wid -> Stack wid
-focusDown' (MkStack t [] []) = MkStack t [] []
-focusDown' (MkStack t ls (r::rs)) = MkStack r (t::ls) rs
-focusDown' (MkStack t (l::ls) []) = MkStack l [] (reverse (t::ls))
-
-focusDown : StackSet wid sid -> StackSet wid sid
-focusDown = workspaceStack' . screenWorkspace' . stackSetCurrent' ^%= map focusDown'
-
-windows : (StackSet wid sid -> StackSet wid sid) -> { [IR wid sid, STATE (IRState wid sid)] } Eff ()
-windows f = do
-  update (irStateStackSet' ^%= f)
-  runLayout
 
 handleEvent : Event -> { [IR wid sid, STATE (IRState wid sid), READER (IRConf wid sid)] } Eff ()
 handleEvent RefreshEvent = refresh

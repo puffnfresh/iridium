@@ -11,6 +11,7 @@ int quartzInit();
 int quartzSpacesCount();
 void *quartzEvent();
 void *quartzMainFrame();
+void quartzGrabKey(int keyCode, int alternative, int command, int control, int shift);
 
 void quartzWindowsFree(QuartzWindows *windows);
 void *quartzWindows();

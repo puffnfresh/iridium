@@ -3,12 +3,50 @@
 #include "quartz.h"
 #include "quartz_stubs.h"
 
+@interface QuartzGrabbedKey : NSObject
+
+@property unsigned short keyCode;
+@property NSUInteger modifierFlags;
+
+- (id)initWithKeyCode:(unsigned short)aKeyCode modifierFlags:(NSUInteger)aModifierFlags;
+
+@end
+
+@implementation QuartzGrabbedKey
+
+- (id)initWithKeyCode:(unsigned short)aKeyCode modifierFlags:(NSUInteger)aModifierFlags {
+  if (self = [super init]) {
+    self.keyCode = aKeyCode;
+    self.modifierFlags = aModifierFlags;
+  }
+  return self;
+}
+
+@end
+
+NSMutableArray *quartzGrabbedKeys;
+
 void quartzApplicationDeactivateCallback(NSNotification *notification) {
   [NSApp postEvent:[NSEvent otherEventWithType:NSApplicationDefined location:NSMakePoint(0,0) modifierFlags:0 timestamp:0 windowNumber:0 context:nil subtype:QuartzApplicationDeactivateEvent data1:0 data2:0] atStart:NO];
 }
 
 CGEventRef quartzEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *ref) {
-  [NSApp postEvent:[NSEvent eventWithCGEvent:event] atStart:NO];
+  switch (type) {
+  case kCGEventKeyDown:
+    {
+      NSEvent *ee = [NSEvent eventWithCGEvent:event];
+      for (QuartzGrabbedKey *grabbedKey in quartzGrabbedKeys) {
+        unsigned long modifierFlags = [ee modifierFlags];
+        if (grabbedKey.keyCode == [ee keyCode] && (grabbedKey.modifierFlags & modifierFlags) == grabbedKey.modifierFlags) {
+          [NSApp postEvent:ee atStart:NO];
+          return NULL;
+        }
+      }
+    }
+    break;
+  default:
+    [NSApp postEvent:[NSEvent eventWithCGEvent:event] atStart:NO];
+  }
   return event;
 }
 
@@ -31,6 +69,8 @@ int quartzInit() {
   [NSApplication sharedApplication];
   [NSApp finishLaunching];
   Boolean success = AXIsProcessTrusted();
+
+  quartzGrabbedKeys = [NSMutableArray arrayWithCapacity:0];
 
   // [NSScreen screensHaveSeparateSpaces];
 
@@ -85,6 +125,9 @@ void *quartzFindWindow(int wid) {
 void quartzWindowSetRect(int wid, double x, double y, double w, double h) {
   AXUIElementRef window = quartzFindWindow(wid);
 
+  if (window == NULL)
+    return;
+
   CGPoint point = CGPointMake(x, y);
   AXValueRef pointRef = AXValueCreate(kAXValueCGPointType, &point);
   AXUIElementSetAttributeValue(window, kAXPositionAttribute, pointRef);
@@ -100,6 +143,9 @@ void quartzWindowSetRect(int wid, double x, double y, double w, double h) {
 
 void quartzWindowSetFocus(int wid) {
   AXUIElementRef window = quartzFindWindow(wid);
+
+  if (window == NULL)
+    return;
 
   AXUIElementSetAttributeValue(window, kAXMainAttribute, kCFBooleanTrue);
 
@@ -177,6 +223,24 @@ void *quartzMainFrame() {
     irFrame->h = visibleFrame.size.height;
 
     return irFrame;
+}
+
+void quartzGrabKey(int keyCode, int alternative, int command, int control, int shift) {
+  NSUInteger modifierFlags = 0;
+  if (alternative) {
+    modifierFlags |= NSAlternateKeyMask;
+  }
+  if (command) {
+    modifierFlags |= NSCommandKeyMask;
+  }
+  if (control) {
+    modifierFlags |= NSControlKeyMask;
+  }
+  if (shift) {
+    modifierFlags |= NSShiftKeyMask;
+  }
+  QuartzGrabbedKey *key = [[QuartzGrabbedKey alloc] initWithKeyCode:keyCode modifierFlags:modifierFlags];
+  [quartzGrabbedKeys addObject:key];
 }
 
 void *quartzEvent() {
