@@ -120,6 +120,8 @@ quartzConf =
     (MkKey 49 True True False False, update nextLayout >>= \_ => refresh)
   , (MkKey 38 True True False False, windows focusDown)
   , (MkKey 40 True True False False, windows focusUp)
+  , (MkKey 38 True True False True, windows swapDown)
+  , (MkKey 40 True True False True, windows swapUp)
   ])
 
 partial

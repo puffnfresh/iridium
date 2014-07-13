@@ -53,6 +53,16 @@ focusDown = modify' focusDown'
 focusUp : StackSet wid sid -> StackSet wid sid
 focusUp = modify' focusUp'
 
+swapUp' : Stack wid -> Stack wid
+swapUp' (MkStack t (l::ls) rs) = MkStack t ls (l::rs)
+swapUp' (MkStack t []     rs) = MkStack t (reverse rs) []
+
+swapUp : StackSet wid sid -> StackSet wid sid
+swapUp = modify' swapUp'
+
+swapDown : StackSet wid sid -> StackSet wid sid
+swapDown = modify' (reverseStack . swapUp' . reverseStack)
+
 windows : (StackSet wid sid -> StackSet wid sid) -> { [IR wid sid, STATE (IRState wid sid)] } Eff ()
 windows f = do
   update (irStateStackSet' ^%= f)
