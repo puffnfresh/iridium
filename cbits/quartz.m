@@ -173,6 +173,9 @@ void *quartzWindows() {
     CFArrayRef windowsArrayRef;
     AXUIElementCopyAttributeValues(axElementRef, kAXWindowsAttribute, 0, QUARTZ_WINDOWS_LENGTH, &windowsArrayRef);
 
+    CFBooleanRef frontMostRef;
+    AXUIElementCopyAttributeValue(axElementRef, kAXFrontmostAttribute, (const void **)&frontMostRef);
+
     NSArray *windowRefs = CFBridgingRelease(windowsArrayRef);
     for (NSUInteger index = 0; index < windowRefs.count; ++index) {
       AXUIElementRef windowRef = (__bridge AXUIElementRef)windowRefs[index];
@@ -183,6 +186,13 @@ void *quartzWindows() {
 
       CGWindowID wid;
       _AXUIElementGetWindow(windowRef, &wid);
+
+      CFBooleanRef mainRef;
+      AXUIElementCopyAttributeValue(windowRef, kAXMainAttribute, (const void **)&mainRef);
+
+      if (CFBooleanGetValue(frontMostRef) && CFBooleanGetValue(mainRef)) {
+        windows->focused = wid;
+      }
 
       if ([subrole isEqualToString:(__bridge NSString *)kAXStandardWindowSubrole]) {
         if (windows->length < QUARTZ_WINDOWS_LENGTH) {
@@ -209,6 +219,10 @@ int quartzWindowId(QuartzWindows *windows, int index) {
 
 int quartzWindowsLength(QuartzWindows *windows) {
   return windows->length;
+}
+
+int quartzWindowsFocusedId(QuartzWindows *windows) {
+  return windows->focused;
 }
 
 void *quartzMainFrame() {

@@ -36,13 +36,14 @@ QuartzState = IRState QuartzWindow QuartzSpace
 QUARTZ : EFFECT
 QUARTZ = IR QuartzWindow QuartzSpace
 
-quartzGetWindows : IO (List QuartzWindow)
+quartzGetWindows : IO (List QuartzWindow, QuartzWindow)
 quartzGetWindows = do
   p <- mkForeign (FFun "quartzWindows" [] FPtr)
   l <- mkForeign (FFun "quartzWindowsLength" [FPtr] FInt) p
   wids <- traverse (\a => mkForeign (FFun "quartzWindowId" [FPtr, FInt] FInt) p a) [0..l-1]
+  focused <- mkForeign (FFun "quartzWindowsFocusedId" [FPtr] FInt) p
   mkForeign (FFun "quartzWindowsFree" [FPtr] FUnit) p
-  return wids
+  return (wids, focused)
 
 quartzTileWindow : QuartzWindow -> Rectangle -> IO ()
 quartzTileWindow wid r =
@@ -54,12 +55,12 @@ quartzFocusWindow wid =
 
 quartzRefresh : QuartzState -> IO QuartzState
 quartzRefresh s = do
-  wids <- quartzGetWindows
+  (wids, focused) <- quartzGetWindows
   let stack = workspaceStack' . screenWorkspace' . stackSetCurrent' . irStateStackSet' ^$ s
   let wids' = fromMaybe [] (map (\s => toList (integrate s)) stack)
   let deleted = wids' \\ wids
   let inserted = wids \\ wids'
-  return (irStateStackSet' ^%= (\ss => foldr insertUp (foldr delete ss deleted) inserted) $ s)
+  return (irStateStackSet' ^%= (\ss => focusWindow focused (foldr insertUp (foldr delete ss deleted) inserted)) $ s)
 
 quartzGetFrames : IO (n ** Vect (S n) Rectangle)
 quartzGetFrames = do
@@ -101,7 +102,7 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
     quartzFocusWindow wid
     k () ()
   handle () GetWindows k = do
-    wids <- quartzGetWindows
+    (wids, _) <- quartzGetWindows
     k wids ()
   handle () GetFrames k = do
     f <- quartzGetFrames
@@ -110,7 +111,7 @@ instance Handler (IREffect QuartzWindow QuartzSpace) IO where
 initialQuartzState : IO (IRState QuartzWindow QuartzSpace)
 initialQuartzState = do
   (_ ** frame :: _) <- quartzGetFrames
-  wids <- quartzGetWindows
+  (wids, _) <- quartzGetWindows
   let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout, fullLayout]) Nothing) wids
   return (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
 

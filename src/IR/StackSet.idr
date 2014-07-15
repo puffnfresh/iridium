@@ -23,16 +23,22 @@ filter p (MkStack f ls rs) = case filter p (f::rs) of
     f'::ls' => Just (MkStack f' ls' [])
     [] => Nothing
 
+stackSetStack : Lens (StackSet wid sid) (Maybe (Stack wid))
+stackSetStack = workspaceStack' . screenWorkspace' . stackSetCurrent'
+
 -- TODO: Use more than stackSetCurrent'
 delete : Eq wid => wid -> StackSet wid sid -> StackSet wid sid
-delete wid = workspaceStack' . screenWorkspace' . stackSetCurrent' ^%= (>>= filter (/= wid))
+delete wid = stackSetStack ^%= (>>= filter (/= wid))
 
 insertUp : Eq wid => wid -> StackSet wid sid -> StackSet wid sid
 insertUp wid s = if member wid s then s else insert
   where insert = workspaceStack' . screenWorkspace' . stackSetCurrent' ^%= Just . maybe (MkStack wid [] []) (\(MkStack t l r) => MkStack wid l (t::r)) $ s
 
 modify' : (Stack wid -> Stack wid) -> StackSet wid sid -> StackSet wid sid
-modify' f = workspaceStack' . screenWorkspace' . stackSetCurrent' ^%= map f
+modify' f = stackSetStack ^%= map f
+
+stackSetPeek : StackSet wid sid -> Maybe wid
+stackSetPeek ss = map (\s => stackFocus' ^$ s) (stackSetStack ^$ ss)
 
 reverseStack : Stack wid -> Stack wid
 reverseStack (MkStack t ls rs) = MkStack t rs ls
@@ -53,6 +59,9 @@ focusDown = modify' focusDown'
 focusUp : StackSet wid sid -> StackSet wid sid
 focusUp = modify' focusUp'
 
+focusWindow : Eq wid => wid -> StackSet wid sid -> StackSet wid sid
+focusWindow wid s = fromMaybe s (find ((== Just wid) . stackSetPeek) (take (maybe 0 stackLength (stackSetStack ^$ s)) (iterate focusUp s)))
+
 swapUp' : Stack wid -> Stack wid
 swapUp' (MkStack t (l::ls) rs) = MkStack t ls (l::rs)
 swapUp' (MkStack t []     rs) = MkStack t (reverse rs) []
@@ -66,4 +75,4 @@ swapDown = modify' (reverseStack . swapUp' . reverseStack)
 windows : (StackSet wid sid -> StackSet wid sid) -> { [IR wid sid, STATE (IRState wid sid)] } Eff ()
 windows f = do
   update (irStateStackSet' ^%= f)
-  refresh
+  runLayout
