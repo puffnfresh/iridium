@@ -225,18 +225,43 @@ int quartzWindowsFocusedId(QuartzWindows *windows) {
   return windows->focused;
 }
 
-void *quartzMainFrame() {
-    NSRect frame = [[NSScreen mainScreen] frame];
-    NSRect visibleFrame = [[NSScreen mainScreen] visibleFrame];
-    IRFrame *irFrame = malloc(sizeof(IRFrame));
+void *quartzScreens() {
+  NSArray *frames = [NSScreen screens];
+
+  QuartzScreens *screens = malloc(sizeof(QuartzScreens));
+
+  NSUInteger count = [frames count];
+  screens->length = count;
+  screens->frames = malloc(sizeof(IRFrame) * count);
+
+  unsigned int i = 0;
+  for (NSScreen *screen in frames) {
+    NSRect frame = [screen frame];
+    NSRect visibleFrame = [screen visibleFrame];
 
     // Menu bar is always up the top.
-    irFrame->y = frame.size.height - visibleFrame.size.height;
-    irFrame->x = visibleFrame.origin.x;
-    irFrame->w = visibleFrame.size.width;
-    irFrame->h = visibleFrame.size.height;
+    screens->frames[i].y = frame.size.height - visibleFrame.size.height;
+    screens->frames[i].x = visibleFrame.origin.x;
+    screens->frames[i].w = visibleFrame.size.width;
+    screens->frames[i].h = visibleFrame.size.height;
 
-    return irFrame;
+    i++;
+  }
+
+  return screens;
+}
+
+int quartzScreensLength(QuartzScreens *screens) {
+  return screens->length;
+}
+
+void *quartzScreensFrame(QuartzScreens *screens, int index) {
+  return &screens->frames[index];
+}
+
+void quartzScreensFree(QuartzScreens *screens) {
+  free(screens->frames);
+  free(screens);
 }
 
 void quartzGrabKey(int keyCode, int alternative, int command, int control, int shift) {

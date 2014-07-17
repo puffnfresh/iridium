@@ -4,14 +4,22 @@ typedef struct QuartzWindows {
   int focused;
 } QuartzWindows;
 
-typedef enum {
+typedef struct QuartzScreens {
+  int length;
+  IRFrame *frames;
+} QuartzScreens;
+
+typedef enum QuartzEventType {
   QuartzApplicationDeactivateEvent
 } QuartzEventType;
 
 int quartzInit();
 int quartzSpacesCount();
 void *quartzEvent();
-void *quartzMainFrame();
+void *quartzScreens();
+void quartzScreensFree(QuartzScreens *screens);
+int quartzScreensLength(QuartzScreens *screens);
+void *quartzScreensFrame(QuartzScreens *screens, int index);
 void quartzGrabKey(int keyCode, int alternative, int command, int control, int shift);
 
 void quartzWindowsFree(QuartzWindows *windows);

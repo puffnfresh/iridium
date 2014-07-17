@@ -62,15 +62,23 @@ quartzRefresh s = do
   let inserted = wids \\ wids'
   return (irStateStackSet' ^%= (\ss => focusWindow focused (foldr insertUp (foldr delete ss deleted) inserted)) $ s)
 
+quartzGetFrame : Ptr -> Int -> IO Rectangle
+quartzGetFrame p i = do
+  r <- mkForeign (FFun "quartzScreensFrame" [FPtr, FInt] FPtr) p i
+  x <- mkForeign (FFun "irFrameX" [FPtr] FFloat) r
+  y <- mkForeign (FFun "irFrameY" [FPtr] FFloat) r
+  w <- mkForeign (FFun "irFrameW" [FPtr] FFloat) r
+  h <- mkForeign (FFun "irFrameH" [FPtr] FFloat) r
+  return (MkRectangle x y w h)
+
 quartzGetFrames : IO (n ** Vect (S n) Rectangle)
 quartzGetFrames = do
-  p <- mkForeign (FFun "quartzMainFrame" [] FPtr)
-  x <- mkForeign (FFun "irFrameX" [FPtr] FFloat) p
-  y <- mkForeign (FFun "irFrameY" [FPtr] FFloat) p
-  w <- mkForeign (FFun "irFrameW" [FPtr] FFloat) p
-  h <- mkForeign (FFun "irFrameH" [FPtr] FFloat) p
-  mkForeign (FFun "irFrameFree" [FPtr] FUnit) p
-  return (0 ** [MkRectangle x y w h])
+  p <- mkForeign (FFun "quartzScreens" [] FPtr)
+  l <- mkForeign (FFun "quartzScreensLength" [FPtr] FInt) p
+  mainFrame <- quartzGetFrame p 0
+  frames <- traverse (quartzGetFrame p) [1..l-1]
+  mkForeign (FFun "quartzScreensFree" [FPtr] FUnit) p
+  return (length frames ** mainFrame :: fromList frames)
 
 quartzGrabKeys : List Key -> IO ()
 quartzGrabKeys keys =
