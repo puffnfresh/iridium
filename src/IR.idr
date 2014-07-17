@@ -138,8 +138,6 @@ runLayout = do
   -- Idris bug: maybe doesn't work here, have to use fromMaybe
   let maybeStack = workspaceStack' . screenWorkspace' ^$ screen
   let l = layoutPure' . workspaceLayout' . screenWorkspace' ^$ screen
-  -- Idris bug: there's a useless `Applicative m` constraint, supply Identity to get this to compile:
-  -- https://github.com/idris-lang/Idris-dev/pull/1364
   case maybeStack of
     Just stack => do
       mapVE (uncurry tileWindow) (l frame stack)

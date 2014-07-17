@@ -26,8 +26,12 @@
 
 NSMutableArray *quartzGrabbedKeys;
 
-void quartzApplicationDeactivateCallback(NSNotification *notification) {
+void quartzPostDeactivateEvent() {
   [NSApp postEvent:[NSEvent otherEventWithType:NSApplicationDefined location:NSMakePoint(0,0) modifierFlags:0 timestamp:0 windowNumber:0 context:nil subtype:QuartzApplicationDeactivateEvent data1:0 data2:0] atStart:NO];
+}
+
+void quartzApplicationDeactivateCallback(NSNotification *notification) {
+  quartzPostDeactivateEvent();
 }
 
 CGEventRef quartzEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *ref) {
@@ -50,6 +54,10 @@ CGEventRef quartzEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventR
   return event;
 }
 
+void quartzObserverCallback(AXObserverRef observer, AXUIElementRef element, CFStringRef notificationName, void *data) {
+  quartzPostDeactivateEvent();
+}
+
 void quartzAttachEvents() {
   CGEventMask eventMask = CGEventMaskBit(kCGEventKeyDown);
   CFMachPortRef eventTap = CGEventTapCreate(kCGHIDEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask, quartzEventCallback, NULL);
@@ -58,6 +66,20 @@ void quartzAttachEvents() {
   CGEventTapEnable(eventTap, YES);
   CFRelease(runLoopSource);
   CFRelease(eventTap);
+
+  for (NSRunningApplication *runningApp in [[NSWorkspace sharedWorkspace] runningApplications]) {
+    AXUIElementRef axElementRef = AXUIElementCreateApplication(runningApp.processIdentifier);
+
+    AXObserverRef axObserver;
+    AXObserverCreate(runningApp.processIdentifier, quartzObserverCallback, &axObserver);
+
+    AXObserverAddNotification(axObserver, axElementRef, kAXWindowMiniaturizedNotification, NULL);
+    AXObserverAddNotification(axObserver, axElementRef, kAXWindowMovedNotification, NULL);
+    AXObserverAddNotification(axObserver, axElementRef, kAXWindowResizedNotification, NULL);
+    //AXObserverAddNotification(axObserver, axElementRef, kAXFocusedWindowChangedNotification, NULL);
+
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(axObserver), kCFRunLoopDefaultMode);
+  }
 
   NSNotificationCenter *center =  [[NSWorkspace sharedWorkspace] notificationCenter];
   [center addObserverForName:NSWorkspaceDidDeactivateApplicationNotification object:nil queue:nil usingBlock:^(NSNotification *notiication) {
