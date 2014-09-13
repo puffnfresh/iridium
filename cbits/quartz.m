@@ -24,7 +24,8 @@
 
 @end
 
-NSMutableArray *quartzGrabbedKeys;
+CFMachPortRef quartzEventTap;
+NSMutableSet *quartzGrabbedKeys;
 
 void quartzPostDeactivateEvent() {
   [NSApp postEvent:[NSEvent otherEventWithType:NSApplicationDefined location:NSMakePoint(0,0) modifierFlags:0 timestamp:0 windowNumber:0 context:nil subtype:QuartzApplicationDeactivateEvent data1:0 data2:0] atStart:NO];
@@ -48,6 +49,10 @@ CGEventRef quartzEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventR
       }
     }
     break;
+  case kCGEventTapDisabledByTimeout:
+  case kCGEventTapDisabledByUserInput:
+    CGEventTapEnable(quartzEventTap, YES);
+    return NULL;
   default:
     [NSApp postEvent:[NSEvent eventWithCGEvent:event] atStart:NO];
   }
@@ -60,12 +65,12 @@ void quartzObserverCallback(AXObserverRef observer, AXUIElementRef element, CFSt
 
 void quartzAttachEvents() {
   CGEventMask eventMask = CGEventMaskBit(kCGEventKeyDown);
-  CFMachPortRef eventTap = CGEventTapCreate(kCGHIDEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask, quartzEventCallback, NULL);
-  CFRunLoopSourceRef runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0);
+  quartzEventTap = CGEventTapCreate(kCGHIDEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask, quartzEventCallback, NULL);
+  CFRunLoopSourceRef runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, quartzEventTap, 0);
   CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, kCFRunLoopDefaultMode);
-  CGEventTapEnable(eventTap, YES);
+  CGEventTapEnable(quartzEventTap, YES);
   CFRelease(runLoopSource);
-  CFRelease(eventTap);
+  // CFRelease(quartzEventTap);
 
   for (NSRunningApplication *runningApp in [[NSWorkspace sharedWorkspace] runningApplications]) {
     AXUIElementRef axElementRef = AXUIElementCreateApplication(runningApp.processIdentifier);
@@ -76,7 +81,9 @@ void quartzAttachEvents() {
     AXObserverAddNotification(axObserver, axElementRef, kAXWindowMiniaturizedNotification, NULL);
     AXObserverAddNotification(axObserver, axElementRef, kAXWindowMovedNotification, NULL);
     AXObserverAddNotification(axObserver, axElementRef, kAXWindowResizedNotification, NULL);
-    //AXObserverAddNotification(axObserver, axElementRef, kAXFocusedWindowChangedNotification, NULL);
+    // AXObserverAddNotification(axObserver, axElementRef, kAXFocusedWindowChangedNotification, NULL);
+
+    CFRelease(axElementRef);
 
     CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(axObserver), kCFRunLoopDefaultMode);
   }
@@ -92,7 +99,7 @@ int quartzInit() {
   [NSApp finishLaunching];
   Boolean success = AXIsProcessTrusted();
 
-  quartzGrabbedKeys = [NSMutableArray arrayWithCapacity:0];
+  quartzGrabbedKeys = [NSMutableSet setWithCapacity:0];
 
   // [NSScreen screensHaveSeparateSpaces];
 
