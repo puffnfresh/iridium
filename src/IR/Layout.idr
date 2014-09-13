@@ -26,6 +26,6 @@ single l = x
   where x = MkLayout l x
 
 choose : Vect (S n) (LayoutF wid) -> Layout wid
-choose {n} (x::xs) =
+choose {n} {wid} (x::xs) =
   let xs' : Vect (S n) (LayoutF wid) = rewrite plusCommutative 1 n in xs ++ [x]
   in MkLayout x (choose xs')
