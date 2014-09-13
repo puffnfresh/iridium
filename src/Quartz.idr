@@ -14,7 +14,7 @@ import IR.StackSet
 
 %default total
 
-%assert_total
+partial
 putErrLn : String -> IO ()
 putErrLn s = fwrite stderr (s ++ "\n")
 
