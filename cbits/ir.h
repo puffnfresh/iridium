@@ -1,3 +1,6 @@
+#ifndef __IR_H
+#define __IR_H
+
 typedef struct {
   double x;
   double y;
@@ -37,3 +40,5 @@ int irEventKeyAlternate(IREvent *event);
 int irEventKeyCommand(IREvent *event);
 int irEventKeyControl(IREvent *event);
 int irEventKeyShift(IREvent *event);
+
+#endif /* __IR_H */
