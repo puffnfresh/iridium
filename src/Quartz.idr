@@ -123,14 +123,38 @@ initialQuartzState = do
   let workspace : Workspace QuartzWindow = foldr manage (MkWorkspace (choose [columnLayout, mirrorLayout columnLayout, fullLayout]) Nothing) wids
   return (MkIRState (MkStackSet (MkScreen workspace 0 frame) [] []))
 
+SpacebarKeyCode : Int
+SpacebarKeyCode = 0x31
+
+JKeyCode : Int
+JKeyCode = 0x26
+
+KKeyCode : Int
+KKeyCode = 0x28
+
+CmdOptionSpacebar : Key
+CmdOptionSpacebar = MkKey SpacebarKeyCode True True False False
+
+CmdOptionJKey : Key
+CmdOptionJKey = MkKey JKeyCode True True False False
+
+CmdOptionShiftJKey : Key
+CmdOptionShiftJKey = MkKey JKeyCode True True False True
+
+CmdOptionKKey : Key
+CmdOptionKKey = MkKey KKeyCode True True False False
+
+CmdOptionShiftKKey : Key
+CmdOptionShiftKKey = MkKey KKeyCode True True False True
+
 quartzConf : IRConf QuartzWindow QuartzSpace
 quartzConf =
   MkIRConf (fromList [
-    (MkKey 49 True True False False, update nextLayout >>= \_ => refresh)
-  , (MkKey 38 True True False False, windows focusDown)
-  , (MkKey 40 True True False False, windows focusUp)
-  , (MkKey 38 True True False True, windows swapDown)
-  , (MkKey 40 True True False True, windows swapUp)
+    (CmdOptionSpacebar, update nextLayout >>= \_ => refresh)
+  , (CmdOptionJKey, windows focusDown)
+  , (CmdOptionKKey, windows focusUp)
+  , (CmdOptionShiftJKey, windows swapDown)
+  , (CmdOptionShiftKKey, windows swapUp)
   ])
 
 partial
