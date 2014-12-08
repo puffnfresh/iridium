@@ -6,7 +6,8 @@ import IR.Layout
 import IR.Lens
 import IR.StackSet
 
-%flag C "-framework Cocoa"
+%flag C "Cocoa"
+%flag C "-framework"
 %include C "cbits/quartz.h"
 %link C "src/quartz.o"
 %include C "cbits/ir.h"

@@ -28,13 +28,13 @@ instance Comonad (Store s) where
 
 instance VerifiedComonad (Store s) where
   comonadLaw1 (MkStore f a) = ?storeIdentityProof
-  comonadLaw2 f (MkStore g a) = refl
-  comonadLaw3 f g (MkStore h a) = refl
+  comonadLaw2 f (MkStore g a) = Refl
+  comonadLaw3 f g (MkStore h a) = Refl
 
 -- TODO: This is evil.
 -- Supposedly (jonsterling) this definition used to work without the believe_me.
 eta : (f : a -> b) -> f = (\c => f c)
-eta g = believe_me refl {g}
+eta g = believe_me Refl {g}
 
 storeIdentityProof = proof
   intros
