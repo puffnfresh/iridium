@@ -219,7 +219,7 @@ void *quartzWindows() {
       CFBooleanRef mainRef;
       AXUIElementCopyAttributeValue(windowRef, kAXMainAttribute, (const void **)&mainRef);
 
-      if (CFBooleanGetValue(frontMostRef) && CFBooleanGetValue(mainRef)) {
+      if (CFBooleanGetValue(frontMostRef) && mainRef != NULL && CFBooleanGetValue(mainRef)) {
         windows->focused = wid;
       }
 
